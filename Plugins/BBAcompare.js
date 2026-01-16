@@ -1,5 +1,5 @@
 (function () {
-    console.log("BBA Compare version 1.4.0");
+    console.log("BBA Compare version 1.5.0");
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
     function hand2PBN(t) {
@@ -11,27 +11,17 @@
         return `${s}.${h}.${d}.${c}`;
     }
 
-    // Get dealer seat (from PBNcapture.js)
-    function getDealerSeatNr() {
-        var d = $(".vulPanelDealerClass", PWD).first();
-        if (d.width() == undefined) return -1;
-        if (d.width() > d.height()) {
-            if (d.position().top == 0) return 0;
-            return 2;
-        } else {
-            if (d.position().left == 0) return 3;
-            return 1;
-        }
-    }
-
+    // Get dealer from board number (standard rotation: 1=N, 2=E, 3=S, 4=W)
     function getDealerSeat() {
-        var ah = $("auction-box-header-cell", PWD).text().replaceAll(" ", "").replaceAll("\n", "");
-        var seatNr = getDealerSeatNr();
-        console.log("BBA Compare: getDealerSeat ah='" + ah + "', seatNr=" + seatNr);
-        if (seatNr < 0) return "";
-        // Try offset 1 (was 3, but that was 180 degrees off)
-        var dealer = ah.charAt((seatNr + 1) % 4);
-        console.log("BBA Compare: computed dealer=" + dealer);
+        // Compute dealer from board number: 1=N, 2=E, 3=S, 4=W, then repeats
+        var boardNum = parseInt(getDealNumber(), 10);
+        if (isNaN(boardNum) || boardNum < 1) {
+            console.log("BBA Compare: Could not parse board number");
+            return "";
+        }
+        var dealers = ['N', 'E', 'S', 'W'];
+        var dealer = dealers[(boardNum - 1) % 4];
+        console.log("BBA Compare: board=" + boardNum + ", computed dealer=" + dealer);
         return dealer;
     }
 
