@@ -1,5 +1,5 @@
 (function () {
-    console.log("BBA Compare version 1.2.0");
+    console.log("BBA Compare version 1.3.0");
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
     function hand2PBN(t) {
@@ -81,9 +81,11 @@
 
             // Auto-refresh when a new bid is made - check if auction just completed
             addBBOalertEvent("onNewAuction", function () {
+                var ctx = getContext();
+                console.log("BBA Compare: onNewAuction fired, ctx=" + ctx + ", complete=" + isAuctionComplete(ctx) + ", lastCompared=" + lastComparedAuction);
                 if (cfg.Enable_Comparison && cfg.Show_Panel) {
-                    var ctx = getContext();
                     if (isAuctionComplete(ctx) && ctx !== lastComparedAuction) {
+                        console.log("BBA Compare: Triggering comparison from onNewAuction");
                         lastComparedAuction = ctx;
                         compareAuction();
                     }
@@ -92,9 +94,11 @@
 
             // Also trigger on deal end (when result panel shows)
             addBBOalertEvent("onDealEnd", function () {
+                var ctx = getContext();
+                console.log("BBA Compare: onDealEnd fired, ctx=" + ctx + ", complete=" + isAuctionComplete(ctx));
                 if (cfg.Enable_Comparison && cfg.Show_Panel) {
-                    var ctx = getContext();
                     if (isAuctionComplete(ctx) && ctx !== lastComparedAuction) {
+                        console.log("BBA Compare: Triggering comparison from onDealEnd");
                         lastComparedAuction = ctx;
                         compareAuction();
                     }
