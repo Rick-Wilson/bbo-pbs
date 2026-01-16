@@ -1,5 +1,5 @@
 (function () {
-    console.log("BBA Compare version 1.5.0");
+    console.log("BBA Compare version 1.6.0");
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
     function hand2PBN(t) {
@@ -329,7 +329,11 @@
             var actualBid = actualBids[i] || '-';
             var expectedBid = expectedBids[i] || '-';
             var bidMatch = actualBid === expectedBid;
-            var meaning = (result.meanings && result.meanings[i]) ? result.meanings[i].meaning : '';
+            // Only show meaning for non-Pass bids (Pass meanings from EPBot are stale/incorrect)
+            var meaning = '';
+            if (result.meanings && result.meanings[i] && expectedBid !== 'Pass') {
+                meaning = result.meanings[i].meaning || '';
+            }
 
             var row = document.createElement('tr');
             row.style.cssText = bidMatch ? '' : 'background: #fff3cd;';
