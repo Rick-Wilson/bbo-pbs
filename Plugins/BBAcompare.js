@@ -1,5 +1,5 @@
 (function () {
-    console.log("BBA Compare version 1.0.0");
+    console.log("BBA Compare version 1.1.0");
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
     function hand2PBN(t) {
@@ -52,6 +52,7 @@
     var title = "BBA Auction Comparison";
     var cfg = {};
     cfg.Enable_Comparison = false;
+    cfg.Show_Panel = true;
     cfg.BBA_Server_URL = "https://bba.harmonicsystems.com";
     cfg.API_Key = "";
     cfg.Scenario_Name = "";
@@ -68,6 +69,13 @@
             addBBOalertEvent("onAnyMutation", function () {
                 if (cfg.Compare_Now) {
                     cfg.Compare_Now = false;
+                    compareAuction();
+                }
+            });
+
+            // Auto-refresh when auction ends (if panel is shown)
+            addBBOalertEvent("onAuctionEnd", function () {
+                if (cfg.Enable_Comparison && cfg.Show_Panel) {
                     compareAuction();
                 }
             });
@@ -98,6 +106,7 @@
 
             var vul = getVulnerability();
             var actualAuction = getContext();
+            var boardNumber = getDealNumber();
 
             // Build PBN deal string (format: DEALER:dealer's_hand then clockwise)
             // N: N E S W, E: E S W N, S: S W N E, W: W N E S
@@ -116,7 +125,8 @@
                 pbn: pbn,
                 dealer: dealer,
                 vulnerability: vul,
-                actualAuction: actualAuction
+                actualAuction: actualAuction,
+                boardNumber: boardNumber
             };
         } catch (e) {
             console.log("BBA Compare: Error collecting deal data: " + e);
@@ -175,7 +185,8 @@
                     expected: result.auctionEncoded,
                     expectedBids: result.auction,
                     meanings: result.meanings,
-                    conventions: result.conventionsUsed
+                    conventions: result.conventionsUsed,
+                    boardNumber: dealData.boardNumber
                 };
                 displayComparison(lastComparisonResult);
             } else {
@@ -245,8 +256,9 @@
             margin-bottom: 10px;
             cursor: move;
         `;
+        var boardLabel = result.boardNumber ? ` - Board ${result.boardNumber}` : '';
         header.innerHTML = `
-            <strong style="font-size: 16px;">BBA Auction Comparison</strong>
+            <strong style="font-size: 16px;">BBA Auction Comparison${boardLabel}</strong>
             <button id="bba-close-btn" style="border:none;background:none;cursor:pointer;font-size:20px;color:#666;">&times;</button>
         `;
         panel.appendChild(header);

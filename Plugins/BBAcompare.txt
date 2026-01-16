@@ -1,0 +1,2 @@
+BBOalert
+Javascript,https://github.com/Rick-Wilson/bbo-pbs/blob/master/Plugins/BBAcompare.js
