@@ -1,0 +1,8 @@
+//BBOalert, PBS + BBA Compare
+// This file loads PBS and adds the BBA Compare plugin
+
+// Load the full PBS system
+Import,https://github.com/ADavidBailey/Practice-Bidding-Scenarios/blob/main/-PBS.txt
+
+// Add BBA Compare plugin
+Javascript,https://github.com/Rick-Wilson/bbo-pbs/blob/master/Plugins/BBAcompare.js
