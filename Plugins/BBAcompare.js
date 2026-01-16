@@ -98,8 +98,18 @@
             var vul = getVulnerability();
             var actualAuction = getContext();
 
-            // Build PBN deal string (format: DEALER:N E S W)
-            var pbn = `${dealer}:${hands.N} ${hands.E} ${hands.S} ${hands.W}`;
+            // Build PBN deal string (format: DEALER:dealer's_hand then clockwise)
+            // N: N E S W, E: E S W N, S: S W N E, W: W N E S
+            var pbn;
+            if (dealer === 'N') {
+                pbn = `N:${hands.N} ${hands.E} ${hands.S} ${hands.W}`;
+            } else if (dealer === 'E') {
+                pbn = `E:${hands.E} ${hands.S} ${hands.W} ${hands.N}`;
+            } else if (dealer === 'S') {
+                pbn = `S:${hands.S} ${hands.W} ${hands.N} ${hands.E}`;
+            } else {
+                pbn = `W:${hands.W} ${hands.N} ${hands.E} ${hands.S}`;
+            }
 
             return {
                 pbn: pbn,
