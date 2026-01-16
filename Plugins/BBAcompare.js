@@ -28,7 +28,8 @@
         var ah = $("auction-box-header-cell", PWD).text().replaceAll(" ", "").replaceAll("\n", "");
         var seatNr = getDealerSeatNr();
         if (seatNr < 0) return "";
-        return ah.charAt((seatNr + 1) % 4);
+        // Offset by 3 (equivalent to -1) to correct rotation
+        return ah.charAt((seatNr + 3) % 4);
     }
 
     // Get vulnerability in standard format
