@@ -1,5 +1,5 @@
 (function () {
-    console.log("BBA Compare version 1.3.0");
+    console.log("BBA Compare version 1.4.0");
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
     function hand2PBN(t) {
@@ -27,9 +27,12 @@
     function getDealerSeat() {
         var ah = $("auction-box-header-cell", PWD).text().replaceAll(" ", "").replaceAll("\n", "");
         var seatNr = getDealerSeatNr();
+        console.log("BBA Compare: getDealerSeat ah='" + ah + "', seatNr=" + seatNr);
         if (seatNr < 0) return "";
-        // Offset by 3 (equivalent to -1) to correct rotation
-        return ah.charAt((seatNr + 3) % 4);
+        // Try offset 1 (was 3, but that was 180 degrees off)
+        var dealer = ah.charAt((seatNr + 1) % 4);
+        console.log("BBA Compare: computed dealer=" + dealer);
+        return dealer;
     }
 
     // Get vulnerability in standard format
