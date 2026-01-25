@@ -1,5 +1,5 @@
 (function () {
-    console.log("BBA Compare version 1.6.0");
+    console.log("BBA Compare version 1.7.0");
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
     function hand2PBN(t) {
@@ -33,6 +33,16 @@
             .replace(/!H/gi, '<span style="color: #d00;">♥</span>')
             .replace(/!D/gi, '<span style="color: #d00;">♦</span>')
             .replace(/!C/gi, '<span style="color: #000;">♣</span>');
+    }
+
+    // Convert bid text like "1S", "2H" to use colored suit symbols
+    function formatBidWithSymbols(bid) {
+        if (!bid) return '';
+        return bid
+            .replace(/S$/, '<span style="color: #000;">♠</span>')
+            .replace(/H$/, '<span style="color: #d00;">♥</span>')
+            .replace(/D$/, '<span style="color: #d00;">♦</span>')
+            .replace(/C$/, '<span style="color: #000;">♣</span>');
     }
 
     // Get vulnerability in standard format
@@ -317,7 +327,7 @@
         } else {
             var yourBid = actualBids[firstDivergenceIndex] || '-';
             var bbaBid = expectedBids[firstDivergenceIndex] || '-';
-            summary.innerHTML = `BBA would have bid <strong>${bbaBid}</strong> instead of <strong>${yourBid}</strong>.`;
+            summary.innerHTML = `BBA would have bid <strong>${formatBidWithSymbols(bbaBid)}</strong> instead of <strong>${formatBidWithSymbols(yourBid)}</strong>.`;
             panel.appendChild(summary);
 
             // Convention info
@@ -374,7 +384,7 @@
                     style += ' background: #fff3cd; font-weight: bold; border: 2px solid #ffc107;';
                 }
 
-                return `<td style="${style}">${bid}${alertSup}</td>`;
+                return `<td style="${style}">${formatBidWithSymbols(bid)}${alertSup}</td>`;
             }
 
             // Body rows - arrange bids in W N E S columns
@@ -428,7 +438,7 @@
                 for (var a = 0; a < alerts.length; a++) {
                     var alertItem = document.createElement('div');
                     alertItem.style.cssText = 'margin-bottom: 3px; padding-left: 5px;';
-                    alertItem.innerHTML = `<sup style="color: #d00;">${alerts[a].num}</sup> ${alerts[a].bid}: ${formatSuitSymbols(alerts[a].meaning)}`;
+                    alertItem.innerHTML = `<sup style="color: #d00;">${alerts[a].num}</sup> ${formatBidWithSymbols(alerts[a].bid)}: ${formatSuitSymbols(alerts[a].meaning)}`;
                     alertsDiv.appendChild(alertItem);
                 }
                 panel.appendChild(alertsDiv);
