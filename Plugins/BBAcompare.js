@@ -1,5 +1,6 @@
 (function () {
-    console.log("BBA Compare version 1.7.0");
+    var CLIENT_VERSION = "1.7.1";
+    console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
     function hand2PBN(t) {
@@ -203,7 +204,8 @@
         try {
             var url = cfg.BBA_Server_URL.replace(/\/$/, "") + "/api/auction/generate";
             var headers = {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Client-Version': CLIENT_VERSION
             };
             if (cfg.API_Key) {
                 headers['X-API-Key'] = cfg.API_Key;
