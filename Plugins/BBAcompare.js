@@ -25,6 +25,16 @@
         return dealer;
     }
 
+    // Convert !S, !H, !D, !C notation to colored suit symbols
+    function formatSuitSymbols(text) {
+        if (!text) return '';
+        return text
+            .replace(/!S/gi, '<span style="color: #000;">♠</span>')
+            .replace(/!H/gi, '<span style="color: #d00;">♥</span>')
+            .replace(/!D/gi, '<span style="color: #d00;">♦</span>')
+            .replace(/!C/gi, '<span style="color: #000;">♣</span>');
+    }
+
     // Get vulnerability in standard format
     function getVulnerability() {
         var vul = areWeVulnerable() + areTheyVulnerable();
@@ -418,7 +428,7 @@
                 for (var a = 0; a < alerts.length; a++) {
                     var alertItem = document.createElement('div');
                     alertItem.style.cssText = 'margin-bottom: 3px; padding-left: 5px;';
-                    alertItem.innerHTML = `<sup style="color: #d00;">${alerts[a].num}</sup> ${alerts[a].bid}: ${alerts[a].meaning}`;
+                    alertItem.innerHTML = `<sup style="color: #d00;">${alerts[a].num}</sup> ${alerts[a].bid}: ${formatSuitSymbols(alerts[a].meaning)}`;
                     alertsDiv.appendChild(alertItem);
                 }
                 panel.appendChild(alertsDiv);
