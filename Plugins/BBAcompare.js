@@ -243,6 +243,15 @@
 
         var match = result.actual === result.expected;
 
+        // Find the first diverging bid
+        var firstDivergenceIndex = -1;
+        for (var i = 0; i < Math.max(actualBids.length, expectedBids.length); i++) {
+            if (actualBids[i] !== expectedBids[i]) {
+                firstDivergenceIndex = i;
+                break;
+            }
+        }
+
         // Create panel
         var panel = document.createElement('div');
         panel.id = 'bba-compare-panel';
@@ -250,7 +259,7 @@
             position: fixed;
             top: 100px;
             right: 50px;
-            width: 400px;
+            width: 320px;
             max-height: 500px;
             overflow-y: auto;
             background: white;
@@ -276,77 +285,145 @@
         `;
         var boardLabel = result.boardNumber ? ` - Board ${result.boardNumber}` : '';
         header.innerHTML = `
-            <strong style="font-size: 16px;">BBA Auction Comparison${boardLabel}</strong>
+            <strong style="font-size: 16px;">BBA Comparison${boardLabel}</strong>
             <button id="bba-close-btn" style="border:none;background:none;cursor:pointer;font-size:20px;color:#666;">&times;</button>
         `;
         panel.appendChild(header);
 
-        // Summary
+        // Summary message
         var summary = document.createElement('div');
         summary.style.cssText = `
             padding: 10px;
             margin-bottom: 10px;
             border-radius: 4px;
             text-align: center;
-            font-weight: bold;
             background: ${match ? '#d4edda' : '#f8d7da'};
             color: ${match ? '#155724' : '#721c24'};
         `;
-        summary.textContent = match ? 'Auctions Match!' : 'Auctions Differ';
-        panel.appendChild(summary);
 
-        // Convention info
-        if (result.conventions) {
-            var convInfo = document.createElement('div');
-            convInfo.style.cssText = 'font-size: 12px; color: #666; margin-bottom: 10px;';
-            convInfo.textContent = `NS: ${result.conventions.ns} | EW: ${result.conventions.ew}`;
-            panel.appendChild(convInfo);
-        }
+        if (match) {
+            summary.textContent = 'BBA would have bid the same as you did.';
+            panel.appendChild(summary);
+        } else {
+            var yourBid = actualBids[firstDivergenceIndex] || '-';
+            var bbaBid = expectedBids[firstDivergenceIndex] || '-';
+            summary.innerHTML = `BBA would have bid <strong>${bbaBid}</strong> instead of <strong>${yourBid}</strong>.`;
+            panel.appendChild(summary);
 
-        // Auction table
-        var table = document.createElement('table');
-        table.style.cssText = 'width: 100%; border-collapse: collapse;';
-
-        // Header row
-        var thead = document.createElement('thead');
-        thead.innerHTML = `
-            <tr style="background: #f0f0f0;">
-                <th style="border: 1px solid #ddd; padding: 8px; width: 15%;">#</th>
-                <th style="border: 1px solid #ddd; padding: 8px; width: 25%;">Actual</th>
-                <th style="border: 1px solid #ddd; padding: 8px; width: 25%;">Expected</th>
-                <th style="border: 1px solid #ddd; padding: 8px; width: 35%;">Meaning</th>
-            </tr>
-        `;
-        table.appendChild(thead);
-
-        // Body rows
-        var tbody = document.createElement('tbody');
-        var maxLen = Math.max(actualBids.length, expectedBids.length);
-        var positions = ['N', 'E', 'S', 'W'];
-        var dealer = result.actual.length > 0 ? 'S' : 'N'; // Default, could be improved
-
-        for (var i = 0; i < maxLen; i++) {
-            var actualBid = actualBids[i] || '-';
-            var expectedBid = expectedBids[i] || '-';
-            var bidMatch = actualBid === expectedBid;
-            // Only show meaning for non-Pass bids (Pass meanings from EPBot are stale/incorrect)
-            var meaning = '';
-            if (result.meanings && result.meanings[i] && expectedBid !== 'Pass') {
-                meaning = result.meanings[i].meaning || '';
+            // Convention info
+            if (result.conventions) {
+                var convInfo = document.createElement('div');
+                convInfo.style.cssText = 'font-size: 12px; color: #666; margin-bottom: 10px; text-align: center;';
+                convInfo.textContent = `NS: ${result.conventions.ns} | EW: ${result.conventions.ew}`;
+                panel.appendChild(convInfo);
             }
 
-            var row = document.createElement('tr');
-            row.style.cssText = bidMatch ? '' : 'background: #fff3cd;';
-            row.innerHTML = `
-                <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${i + 1}</td>
-                <td style="border: 1px solid #ddd; padding: 6px; text-align: center; ${!bidMatch ? 'background: #f8d7da; font-weight: bold;' : ''}">${actualBid}</td>
-                <td style="border: 1px solid #ddd; padding: 6px; text-align: center; ${!bidMatch ? 'background: #d4edda; font-weight: bold;' : ''}">${expectedBid}</td>
-                <td style="border: 1px solid #ddd; padding: 6px; font-size: 12px;">${meaning || ''}</td>
+            // Determine dealer position for table layout
+            var boardNum = parseInt(result.boardNumber, 10) || 1;
+            var dealerPositions = ['W', 'N', 'E', 'S'];  // Column order
+            var dealerIndex = ['N', 'E', 'S', 'W'].indexOf(['N', 'E', 'S', 'W'][(boardNum - 1) % 4]);
+            var columnOrder = ['W', 'N', 'E', 'S'];
+            var dealerColumn = columnOrder.indexOf(['N', 'E', 'S', 'W'][(boardNum - 1) % 4]);
+
+            // Build auction table (4 columns: W N E S)
+            var table = document.createElement('table');
+            table.style.cssText = 'width: 100%; border-collapse: collapse; margin-bottom: 10px;';
+
+            // Header row
+            var thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr style="background: #f0f0f0;">
+                    <th style="border: 1px solid #ddd; padding: 8px; width: 25%;">W</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; width: 25%;">N</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; width: 25%;">E</th>
+                    <th style="border: 1px solid #ddd; padding: 8px; width: 25%;">S</th>
+                </tr>
             `;
-            tbody.appendChild(row);
+            table.appendChild(thead);
+
+            // Collect alerts for the legend
+            var alerts = [];
+            var alertIndex = 0;
+
+            // Build bid cells with alerts
+            function formatBid(bid, bidIndex, isFirstDivergence) {
+                var meaning = '';
+                if (result.meanings && result.meanings[bidIndex] && bid !== 'Pass') {
+                    meaning = result.meanings[bidIndex].meaning || '';
+                }
+
+                var alertSup = '';
+                if (meaning) {
+                    alertIndex++;
+                    alerts.push({ num: alertIndex, bid: bid, meaning: meaning });
+                    alertSup = `<sup style="color: #d00; font-size: 10px;">${alertIndex}</sup>`;
+                }
+
+                var style = 'padding: 6px; text-align: center; border: 1px solid #ddd;';
+                if (isFirstDivergence) {
+                    style += ' background: #fff3cd; font-weight: bold; border: 2px solid #ffc107;';
+                }
+
+                return `<td style="${style}">${bid}${alertSup}</td>`;
+            }
+
+            // Body rows - arrange bids in W N E S columns
+            var tbody = document.createElement('tbody');
+            var dealer = ['N', 'E', 'S', 'W'][(boardNum - 1) % 4];
+            var startColumn = columnOrder.indexOf(dealer);
+
+            // Pad with empty cells before dealer
+            var paddedBids = [];
+            for (var p = 0; p < startColumn; p++) {
+                paddedBids.push({ bid: '', index: -1 });
+            }
+            for (var b = 0; b < expectedBids.length; b++) {
+                paddedBids.push({ bid: expectedBids[b], index: b });
+            }
+
+            // Create rows
+            var row = null;
+            for (var i = 0; i < paddedBids.length; i++) {
+                if (i % 4 === 0) {
+                    if (row) tbody.appendChild(row);
+                    row = document.createElement('tr');
+                }
+                var cellData = paddedBids[i];
+                var isFirstDiv = cellData.index === firstDivergenceIndex;
+                if (cellData.bid === '') {
+                    row.innerHTML += '<td style="padding: 6px; text-align: center; border: 1px solid #ddd;"></td>';
+                } else {
+                    row.innerHTML += formatBid(cellData.bid, cellData.index, isFirstDiv);
+                }
+            }
+            // Fill remaining cells in last row
+            if (row) {
+                var remaining = 4 - (paddedBids.length % 4);
+                if (remaining < 4) {
+                    for (var r = 0; r < remaining; r++) {
+                        row.innerHTML += '<td style="padding: 6px; text-align: center; border: 1px solid #ddd;"></td>';
+                    }
+                }
+                tbody.appendChild(row);
+            }
+
+            table.appendChild(tbody);
+            panel.appendChild(table);
+
+            // Alerts legend
+            if (alerts.length > 0) {
+                var alertsDiv = document.createElement('div');
+                alertsDiv.style.cssText = 'font-size: 12px; border-top: 1px solid #ccc; padding-top: 10px;';
+                alertsDiv.innerHTML = '<strong style="display: block; margin-bottom: 5px;">Alerts:</strong>';
+                for (var a = 0; a < alerts.length; a++) {
+                    var alertItem = document.createElement('div');
+                    alertItem.style.cssText = 'margin-bottom: 3px; padding-left: 5px;';
+                    alertItem.innerHTML = `<sup style="color: #d00;">${alerts[a].num}</sup> ${alerts[a].bid}: ${alerts[a].meaning}`;
+                    alertsDiv.appendChild(alertItem);
+                }
+                panel.appendChild(alertsDiv);
+            }
         }
-        table.appendChild(tbody);
-        panel.appendChild(table);
 
         // Add to page
         document.body.appendChild(panel);
