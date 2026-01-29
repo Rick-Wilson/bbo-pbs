@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.9.0";
+    var CLIENT_VERSION = "1.9.1";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -201,27 +201,36 @@
     }
 
     // Parse BSOL response into our DD format
-    // BSOL returns: "n]s]e]w]" where each section has tricks for C,D,H,S,NT
-    // Example: "7a6898a689769876]" means N can make 7C, 10D, 6H, 8S, 9NT (a=10, etc)
+    // BSOL returns JSON: {"sess":{"ddtricks":"99979999793436434364"},...}
+    // ddtricks is a 20-char string: 5 chars per declarer (N,S,E,W), each char is tricks for C,D,H,S,NT
     function parseBsolResponse(text) {
         try {
-            // BSOL response format: numbers/letters for tricks (0-9, a=10, b=11, c=12, d=13)
-            // Order: C D H S N (clubs, diamonds, hearts, spades, NT)
-            // Sections separated by ] for each declarer: N, S, E, W
-
-            // Remove any whitespace
             text = text.trim();
 
-            // Check for error response
-            if (text.startsWith('Error') || text.length < 20) {
-                console.log("BBA Compare: BSOL returned error or invalid response: " + text);
+            // Parse as JSON
+            var json;
+            try {
+                json = JSON.parse(text);
+            } catch (e) {
+                console.log("BBA Compare: BSOL response is not valid JSON: " + text);
                 return null;
             }
 
-            // Parse the response - format is: NNNNNsSSSSSeEEEEEwWWWWW
-            // Each group of 5 is C,D,H,S,NT tricks for that declarer
-            // Lowercase letters separate the groups (n,s,e,w at start of each section)
+            // Extract ddtricks from sess object
+            if (!json.sess || !json.sess.ddtricks) {
+                console.log("BBA Compare: BSOL response missing ddtricks: " + text);
+                return null;
+            }
 
+            var ddtricks = json.sess.ddtricks;
+            console.log("BBA Compare: BSOL ddtricks = " + ddtricks);
+
+            if (ddtricks.length < 20) {
+                console.log("BBA Compare: ddtricks too short: " + ddtricks.length);
+                return null;
+            }
+
+            // Parse tricks character (0-9 = 0-9, a-d = 10-13)
             function parseTricks(char) {
                 if (char >= '0' && char <= '9') return parseInt(char);
                 if (char >= 'a' && char <= 'd') return 10 + (char.charCodeAt(0) - 'a'.charCodeAt(0));
@@ -229,29 +238,21 @@
                 return 0;
             }
 
-            // Try to parse assuming format: 5 chars per declarer, separated by ]
-            var sections = text.split(']');
-            if (sections.length >= 4) {
-                var dd = {};
-                var declarers = ['N', 'S', 'E', 'W'];
-                var suits = ['C', 'D', 'H', 'S', 'NT'];
+            // ddtricks format: 20 chars = 4 declarers × 5 suits
+            // Order: N(5), S(5), E(5), W(5) - each group is C,D,H,S,NT
+            var dd = {};
+            var declarers = ['N', 'S', 'E', 'W'];
+            var suits = ['C', 'D', 'H', 'S', 'NT'];
 
-                for (var i = 0; i < 4; i++) {
-                    var section = sections[i];
-                    if (section.length >= 5) {
-                        dd[declarers[i]] = {};
-                        for (var j = 0; j < 5; j++) {
-                            dd[declarers[i]][suits[j]] = parseTricks(section[j]);
-                        }
-                    }
+            for (var i = 0; i < 4; i++) {
+                dd[declarers[i]] = {};
+                for (var j = 0; j < 5; j++) {
+                    dd[declarers[i]][suits[j]] = parseTricks(ddtricks[i * 5 + j]);
                 }
-
-                console.log("BBA Compare: Parsed DD results:", JSON.stringify(dd));
-                return dd;
             }
 
-            console.log("BBA Compare: Could not parse BSOL response: " + text);
-            return null;
+            console.log("BBA Compare: Parsed DD results:", JSON.stringify(dd));
+            return dd;
         } catch (e) {
             console.log("BBA Compare: Error parsing BSOL response: " + e);
             return null;
