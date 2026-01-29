@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.8.2";
+    var CLIENT_VERSION = "1.8.3";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -37,17 +37,41 @@
 
             // Determine dealer from position (D marker is at the edge corresponding to dealer)
             // Top edge = North, Right edge = East, Bottom edge = South, Left edge = West
+            // The marker is positioned at ONE edge, with the other dimension centered
             var dealer = '';
-            var threshold = 30; // pixels from edge to be considered "at" that edge
+            var edgeThreshold = 25;  // How close to edge to be considered "at" edge
 
-            if (top < threshold) {
-                dealer = 'N';  // Top edge
-            } else if (top > parentHeight - threshold - 30) {
-                dealer = 'S';  // Bottom edge (30 is approx height of D element)
-            } else if (left < threshold) {
-                dealer = 'W';  // Left edge
-            } else if (left > parentWidth - threshold - 30) {
-                dealer = 'E';  // Right edge
+            // Calculate distances from edges and center
+            var distFromTop = top;
+            var distFromBottom = parentHeight - top - 20;  // 20 = approx marker height
+            var distFromLeft = left;
+            var distFromRight = parentWidth - left - 20;   // 20 = approx marker width
+
+            var isNearTopEdge = distFromTop < edgeThreshold;
+            var isNearBottomEdge = distFromBottom < edgeThreshold;
+            var isNearLeftEdge = distFromLeft < edgeThreshold;
+            var isNearRightEdge = distFromRight < edgeThreshold;
+
+            console.log("BBA Compare: Edge distances - top=" + distFromTop + ", bottom=" + distFromBottom +
+                        ", left=" + distFromLeft + ", right=" + distFromRight);
+
+            // Determine which edge the marker is at (only one should be true)
+            if (isNearRightEdge && !isNearTopEdge && !isNearBottomEdge) {
+                dealer = 'E';  // Right edge, vertically centered
+            } else if (isNearLeftEdge && !isNearTopEdge && !isNearBottomEdge) {
+                dealer = 'W';  // Left edge, vertically centered
+            } else if (isNearTopEdge && !isNearLeftEdge && !isNearRightEdge) {
+                dealer = 'N';  // Top edge, horizontally centered
+            } else if (isNearBottomEdge && !isNearLeftEdge && !isNearRightEdge) {
+                dealer = 'S';  // Bottom edge, horizontally centered
+            } else if (isNearRightEdge) {
+                dealer = 'E';  // Fallback: prioritize horizontal edges
+            } else if (isNearLeftEdge) {
+                dealer = 'W';
+            } else if (isNearTopEdge) {
+                dealer = 'N';
+            } else if (isNearBottomEdge) {
+                dealer = 'S';
             }
 
             if (dealer) {
