@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.8.0";
+    var CLIENT_VERSION = "1.8.1";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -633,10 +633,12 @@
         panel.appendChild(ddDiv);
 
         // Add to top-level page (outside iframe) so it's not clipped
+        var targetDoc = document;
         var targetBody = document.body;
         try {
             // Try to access top-level document (BBO runs in iframe)
             if (window.top && window.top.document && window.top.document.body) {
+                targetDoc = window.top.document;
                 targetBody = window.top.document.body;
                 console.log("BBA Compare: Attaching panel to top-level document");
             }
@@ -654,15 +656,16 @@
             comparisonPanel = null;
         };
 
-        // Make draggable
-        makeDraggable(panel, header);
+        // Make draggable (pass target document for event handlers)
+        makeDraggable(panel, header, targetDoc);
 
         bboalertLog(match ? "Auctions match!" : "Auctions differ - see comparison panel");
     }
 
     // Make element draggable
-    function makeDraggable(panel, handle) {
+    function makeDraggable(panel, handle, targetDoc) {
         var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+        var doc = targetDoc || document;
 
         handle.onmousedown = dragMouseDown;
 
@@ -670,8 +673,8 @@
             e.preventDefault();
             pos3 = e.clientX;
             pos4 = e.clientY;
-            document.onmouseup = closeDragElement;
-            document.onmousemove = elementDrag;
+            doc.onmouseup = closeDragElement;
+            doc.onmousemove = elementDrag;
         }
 
         function elementDrag(e) {
@@ -686,8 +689,8 @@
         }
 
         function closeDragElement() {
-            document.onmouseup = null;
-            document.onmousemove = null;
+            doc.onmouseup = null;
+            doc.onmousemove = null;
         }
     }
 })();
