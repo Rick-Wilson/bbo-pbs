@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.7.6";
+    var CLIENT_VERSION = "1.7.7";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -15,17 +15,12 @@
     // Get dealer from DOM (vulPanelDealerClass) or fallback to board number
     function getDealerSeat() {
         // Try to get dealer from the vulnerability panel dealer indicator
-        // Search in navDiv first, then in parent document
+        // Use jQuery like the rest of BBOAlert does
         var nd = getNavDiv();
-        var dealerEl = nd ? nd.querySelector('.vulPanelDealerClass') : null;
-        if (!dealerEl) {
-            // Try parent document (BBO uses iframes)
-            dealerEl = parent.document.querySelector('.vulPanelDealerClass');
-        }
-        if (!dealerEl) {
-            // Try current document
-            dealerEl = document.querySelector('.vulPanelDealerClass');
-        }
+        var dealerEl = $('.vulPanelDealerClass', nd).get(0);
+
+        console.log("BBA Compare: Looking for dealer element, navDiv=" + (nd ? "found" : "null") +
+                    ", dealerEl=" + (dealerEl ? "found" : "null"));
 
         if (dealerEl) {
             // The "D" marker position indicates dealer seat
