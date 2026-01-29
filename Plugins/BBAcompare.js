@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.8.5";
+    var CLIENT_VERSION = "1.8.7";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -32,53 +32,62 @@
             var parentHeight = parentEl ? parentEl.offsetHeight : 150;
             var parentWidth = parentEl ? parentEl.offsetWidth : 150;
 
-            console.log("BBA Compare: Dealer marker position - top=" + top + ", left=" + left +
-                        ", parent=" + parentWidth + "x" + parentHeight);
+            // Get computed styles for transform and other properties
+            var computedStyle = window.getComputedStyle(dealerEl);
+            var transform = computedStyle.transform || 'none';
+            var cssText = dealerEl.style.cssText;
 
-            // Determine dealer from position (D marker is at the edge corresponding to dealer)
-            // Top edge = North, Right edge = East, Bottom edge = South, Left edge = West
-            // The marker is positioned at ONE edge, with the other dimension centered
+            console.log("BBA Compare: Dealer marker - top=" + top + ", left=" + left +
+                        ", parent=" + parentWidth + "x" + parentHeight +
+                        ", transform=" + transform + ", cssText=" + cssText);
+
+            // Check for transform-based positioning (BBO may use rotation to indicate position)
             var dealer = '';
-            var edgeThreshold = 25;  // How close to edge to be considered "at" edge
 
-            // Calculate distances from edges and center
-            var distFromTop = top;
-            var distFromBottom = parentHeight - top - 20;  // 20 = approx marker height
-            var distFromLeft = left;
-            var distFromRight = parentWidth - left - 20;   // 20 = approx marker width
+            // Parse transform matrix to detect rotation
+            // matrix(a, b, c, d, tx, ty) where rotation angle = atan2(b, a)
+            if (transform && transform !== 'none') {
+                var match = transform.match(/matrix\(([^)]+)\)/);
+                if (match) {
+                    var values = match[1].split(',').map(parseFloat);
+                    var angle = Math.round(Math.atan2(values[1], values[0]) * 180 / Math.PI);
+                    console.log("BBA Compare: Transform rotation angle = " + angle + " degrees");
 
-            var isNearTopEdge = distFromTop < edgeThreshold;
-            var isNearBottomEdge = distFromBottom < edgeThreshold;
-            var isNearLeftEdge = distFromLeft < edgeThreshold;
-            var isNearRightEdge = distFromRight < edgeThreshold;
+                    // Map rotation angle to dealer seat
+                    // 0° = default (North?), 90° = East?, 180° = South?, -90°/270° = West?
+                    if (angle === 0) dealer = 'N';
+                    else if (angle === 90 || angle === -270) dealer = 'E';
+                    else if (angle === 180 || angle === -180) dealer = 'S';
+                    else if (angle === -90 || angle === 270) dealer = 'W';
+                }
+            }
 
-            console.log("BBA Compare: Edge distances - top=" + distFromTop + ", bottom=" + distFromBottom +
-                        ", left=" + distFromLeft + ", right=" + distFromRight);
+            // If transform didn't determine dealer, use position-based detection
+            if (!dealer) {
+                // Calculate distances from edges
+                var distFromTop = top;
+                var distFromBottom = parentHeight - top - 20;  // 20 = approx marker height
+                var distFromLeft = left;
+                var distFromRight = parentWidth - left - 20;   // 20 = approx marker width
 
-            // Determine which edge the marker is at
-            // Pattern observed:
-            //   North: top=0, left=0 (top-left corner)
-            //   East:  top=0, left=80 (top-right corner)
-            //   South: top=large, left varies
-            //   West:  top=centered, left=0
-            // Key insight: when near top, check left to distinguish N vs E
-            if (isNearTopEdge && isNearRightEdge) {
-                dealer = 'E';  // Top-right corner = East
-            } else if (isNearTopEdge) {
-                dealer = 'N';  // Top edge (including top-left corner) = North
-            } else if (isNearBottomEdge) {
-                dealer = 'S';  // Bottom edge = South
-            } else if (isNearLeftEdge) {
-                dealer = 'W';  // Left edge (when not near top/bottom) = West
-            } else if (isNearRightEdge) {
-                dealer = 'E';  // Right edge (when not near top) = East
+                console.log("BBA Compare: Edge distances - top=" + distFromTop + ", bottom=" + distFromBottom +
+                            ", left=" + distFromLeft + ", right=" + distFromRight);
+
+                // Position-based detection
+                if (distFromRight < 10) {
+                    dealer = 'E';  // Only E has right near 0
+                } else if (distFromTop > 50) {
+                    dealer = 'S';  // Only S has top far (80)
+                } else {
+                    // N and W both have top=0, left=0 - cannot distinguish by position alone
+                    // Fall through to board number fallback
+                    console.log("BBA Compare: Position ambiguous (N or W), using board number fallback");
+                }
             }
 
             if (dealer) {
                 console.log("BBA Compare: Detected dealer from position: " + dealer);
                 return dealer;
-            } else {
-                console.log("BBA Compare: Could not determine dealer from position");
             }
         } else {
             console.log("BBA Compare: vulPanelDealerClass not found in DOM");
