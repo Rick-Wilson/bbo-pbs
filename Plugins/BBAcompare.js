@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.7.3";
+    var CLIENT_VERSION = "1.7.4";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -12,9 +12,24 @@
         return `${s}.${h}.${d}.${c}`;
     }
 
-    // Get dealer from board number (standard rotation: 1=N, 2=E, 3=S, 4=W)
+    // Get dealer from DOM (vulPanelDealerClass) or fallback to board number
     function getDealerSeat() {
-        // Compute dealer from board number: 1=N, 2=E, 3=S, 4=W, then repeats
+        var nd = getNavDiv();
+        if (nd) {
+            // Try to get dealer from the vulnerability panel dealer indicator
+            var dealerEl = nd.querySelector('.vulPanelDealerClass');
+            if (dealerEl) {
+                var dealerText = dealerEl.textContent.trim();
+                // Extract seat letter (N, E, S, W) from the text
+                var match = dealerText.match(/[NESW]/);
+                if (match) {
+                    console.log("BBA Compare: Detected dealer from DOM: " + match[0]);
+                    return match[0];
+                }
+            }
+        }
+
+        // Fallback: compute dealer from board number (1=N, 2=E, 3=S, 4=W)
         var boardNum = parseInt(getDealNumber(), 10);
         if (isNaN(boardNum) || boardNum < 1) {
             console.log("BBA Compare: Could not parse board number");
@@ -22,7 +37,7 @@
         }
         var dealers = ['N', 'E', 'S', 'W'];
         var dealer = dealers[(boardNum - 1) % 4];
-        console.log("BBA Compare: board=" + boardNum + ", computed dealer=" + dealer);
+        console.log("BBA Compare: Fallback - computed dealer from board=" + boardNum + ": " + dealer);
         return dealer;
     }
 
