@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.8.1";
+    var CLIENT_VERSION = "1.8.2";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -122,6 +122,7 @@
     var lastComparisonResult = null;
     var comparisonPanel = null;
     var lastComparedAuction = null;
+    var savedPanelPosition = null;  // Remember panel position across updates
     // Try to get DD results from BBO's internal data structures
     function getDDFromBBO() {
         try {
@@ -422,8 +423,14 @@
 
     // Display comparison results
     function displayComparison(result) {
-        // Remove existing panel
+        // Remove existing panel, saving its position
         if (comparisonPanel) {
+            // Save position before removing
+            savedPanelPosition = {
+                top: comparisonPanel.style.top,
+                left: comparisonPanel.style.left,
+                right: comparisonPanel.style.right
+            };
             comparisonPanel.remove();
             comparisonPanel = null;
         }
@@ -445,10 +452,17 @@
         // Create panel
         var panel = document.createElement('div');
         panel.id = 'bba-compare-panel';
+
+        // Use saved position if available, otherwise default
+        var posTop = savedPanelPosition ? savedPanelPosition.top : '100px';
+        var posLeft = savedPanelPosition ? savedPanelPosition.left : '';
+        var posRight = savedPanelPosition && savedPanelPosition.right !== 'auto' ? savedPanelPosition.right : '50px';
+
         panel.style.cssText = `
             position: fixed;
-            top: 100px;
-            right: 50px;
+            top: ${posTop};
+            ${posLeft ? 'left: ' + posLeft + ';' : ''}
+            ${posLeft ? '' : 'right: ' + posRight + ';'}
             width: 320px;
             max-height: 500px;
             overflow-y: auto;
