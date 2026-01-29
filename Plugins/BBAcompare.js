@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.7.2";
+    var CLIENT_VERSION = "1.7.3";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -44,60 +44,6 @@
             .replace(/H$/, '<span style="color: #d00;">♥</span>')
             .replace(/D$/, '<span style="color: #d00;">♦</span>')
             .replace(/C$/, '<span style="color: #000;">♣</span>');
-    }
-
-    // Reorder auction from viewer-seat-first column order to dealer-first order
-    // BBO's auction display may order columns starting from viewer's seat (S, W, N, E for South)
-    // BBA server returns auction starting from dealer position (W, N, E, S for West dealer)
-    function reorderAuctionToDealer(auctionCtx, viewerSeat, dealer) {
-        if (!auctionCtx || auctionCtx.length < 2) return auctionCtx;
-
-        var seats = ['W', 'N', 'E', 'S'];
-        var viewerIndex = seats.indexOf(viewerSeat);
-        var dealerIndex = seats.indexOf(dealer);
-
-        if (viewerIndex < 0 || dealerIndex < 0) {
-            console.log("BBA Compare: Invalid seat for reorder, viewer=" + viewerSeat + ", dealer=" + dealer);
-            return auctionCtx;
-        }
-
-        // If viewer is dealer, no reordering needed
-        if (viewerIndex === dealerIndex) return auctionCtx;
-
-        // Convert to array of 2-char bids
-        var bids = [];
-        for (var i = 0; i < auctionCtx.length; i += 2) {
-            bids.push(auctionCtx.substring(i, i + 2));
-        }
-
-        // Pad to multiple of 4
-        while (bids.length % 4 !== 0) {
-            bids.push('--');
-        }
-
-        // Reorder each group of 4 bids from viewer-first to dealer-first
-        // Input columns are in viewer-first order: viewer, viewer+1, viewer+2, viewer+3
-        // Output columns should be dealer-first: dealer, dealer+1, dealer+2, dealer+3
-        var reorderedBids = [];
-        for (var round = 0; round < bids.length / 4; round++) {
-            var roundBids = bids.slice(round * 4, round * 4 + 4);
-            var newRound = [];
-
-            for (var outCol = 0; outCol < 4; outCol++) {
-                // Which seat should be at output column outCol?
-                var targetSeat = (dealerIndex + outCol) % 4;
-                // Which input column has that seat? (input columns start from viewer)
-                var inCol = (targetSeat - viewerIndex + 4) % 4;
-                newRound.push(roundBids[inCol]);
-            }
-            reorderedBids = reorderedBids.concat(newRound);
-        }
-
-        var result = reorderedBids.join('');
-        console.log("BBA Compare: Reordered auction from " + viewerSeat + "-first to " + dealer + "-first: " +
-                    auctionCtx + " -> " + result);
-
-        return result;
     }
 
     // Get vulnerability in standard format
@@ -198,15 +144,12 @@
             }
 
             var vul = getVulnerability();
-            var rawAuction = getContext();
+            var actualAuction = getContext();
             var boardNumber = getDealNumber();
-
-            // Reorder auction from viewer-seat-first to dealer-first
-            // This is needed because BBO's DOM may order auction cells starting from viewer's seat
             var viewerSeat = mySeat();
-            var actualAuction = reorderAuctionToDealer(rawAuction, viewerSeat, dealer);
-            console.log("BBA Compare: Raw auction=" + rawAuction + ", viewer=" + viewerSeat +
-                        ", dealer=" + dealer + ", reordered=" + actualAuction);
+
+            // Debug logging to diagnose auction alignment issues
+            console.log("BBA Compare: actualAuction=" + actualAuction + ", viewer=" + viewerSeat + ", dealer=" + dealer);
 
             // Build PBN deal string (format: DEALER:dealer's_hand then clockwise)
             // N: N E S W, E: E S W N, S: S W N E, W: W N E S
