@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.7.4";
+    var CLIENT_VERSION = "1.7.5";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -14,19 +14,30 @@
 
     // Get dealer from DOM (vulPanelDealerClass) or fallback to board number
     function getDealerSeat() {
+        // Try to get dealer from the vulnerability panel dealer indicator
+        // Search in navDiv first, then in parent document
         var nd = getNavDiv();
-        if (nd) {
-            // Try to get dealer from the vulnerability panel dealer indicator
-            var dealerEl = nd.querySelector('.vulPanelDealerClass');
-            if (dealerEl) {
-                var dealerText = dealerEl.textContent.trim();
-                // Extract seat letter (N, E, S, W) from the text
-                var match = dealerText.match(/[NESW]/);
-                if (match) {
-                    console.log("BBA Compare: Detected dealer from DOM: " + match[0]);
-                    return match[0];
-                }
+        var dealerEl = nd ? nd.querySelector('.vulPanelDealerClass') : null;
+        if (!dealerEl) {
+            // Try parent document (BBO uses iframes)
+            dealerEl = parent.document.querySelector('.vulPanelDealerClass');
+        }
+        if (!dealerEl) {
+            // Try current document
+            dealerEl = document.querySelector('.vulPanelDealerClass');
+        }
+
+        if (dealerEl) {
+            var dealerText = dealerEl.textContent.trim();
+            console.log("BBA Compare: Found vulPanelDealerClass, text='" + dealerText + "'");
+            // Extract seat letter (N, E, S, W) from the text
+            var match = dealerText.match(/[NESW]/);
+            if (match) {
+                console.log("BBA Compare: Detected dealer from DOM: " + match[0]);
+                return match[0];
             }
+        } else {
+            console.log("BBA Compare: vulPanelDealerClass not found in DOM");
         }
 
         // Fallback: compute dealer from board number (1=N, 2=E, 3=S, 4=W)
