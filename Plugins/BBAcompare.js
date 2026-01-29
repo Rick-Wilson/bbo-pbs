@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.8.4";
+    var CLIENT_VERSION = "1.8.5";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -688,11 +688,14 @@
         targetBody.appendChild(panel);
         comparisonPanel = panel;
 
-        // Close button handler
-        panel.querySelector('#bba-close-btn').onclick = function() {
-            panel.remove();
-            comparisonPanel = null;
-        };
+        // Close button handler - use addEventListener for robustness
+        var closeBtn = panel.querySelector('#bba-close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                panel.remove();
+                comparisonPanel = null;
+            });
+        }
 
         // Make draggable (pass target document for event handlers)
         makeDraggable(panel, header, targetDoc);
@@ -700,19 +703,26 @@
         bboalertLog(match ? "Auctions match!" : "Auctions differ - see comparison panel");
     }
 
-    // Make element draggable
+    // Make element draggable - use addEventListener for robustness
     function makeDraggable(panel, handle, targetDoc) {
         var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
         var doc = targetDoc || document;
 
-        handle.onmousedown = dragMouseDown;
+        // Use addEventListener instead of direct assignment for better stability
+        handle.addEventListener('mousedown', dragMouseDown);
 
         function dragMouseDown(e) {
             e.preventDefault();
             pos3 = e.clientX;
             pos4 = e.clientY;
-            doc.onmouseup = closeDragElement;
-            doc.onmousemove = elementDrag;
+            // Attach to both documents for robustness
+            doc.addEventListener('mouseup', closeDragElement);
+            doc.addEventListener('mousemove', elementDrag);
+            // Also attach to iframe document if different
+            if (doc !== document) {
+                document.addEventListener('mouseup', closeDragElement);
+                document.addEventListener('mousemove', elementDrag);
+            }
         }
 
         function elementDrag(e) {
@@ -727,8 +737,12 @@
         }
 
         function closeDragElement() {
-            doc.onmouseup = null;
-            doc.onmousemove = null;
+            doc.removeEventListener('mouseup', closeDragElement);
+            doc.removeEventListener('mousemove', elementDrag);
+            if (doc !== document) {
+                document.removeEventListener('mouseup', closeDragElement);
+                document.removeEventListener('mousemove', elementDrag);
+            }
         }
     }
 })();
