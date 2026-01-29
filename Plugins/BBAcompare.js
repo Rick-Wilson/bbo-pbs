@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.9.2";
+    var CLIENT_VERSION = "1.9.3";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -262,12 +262,79 @@
         }
     }
 
-    // Render DD table HTML
-    function renderDDTable(dd) {
+    // Parse contract from auction string
+    // Returns { declarer: 'N', strain: 'NT', level: 3 } or null if passed out
+    function parseContract(auction, dealer) {
+        if (!auction || !dealer) return null;
+
+        // Convert auction string to array of calls (each call is 2 chars)
+        var calls = [];
+        for (var i = 0; i < auction.length; i += 2) {
+            calls.push(auction.substring(i, i + 2));
+        }
+
+        // Find the last non-pass bid (not --, Db, or Rd)
+        var lastBidIdx = -1;
+        var lastBid = null;
+        for (var i = calls.length - 1; i >= 0; i--) {
+            var call = calls[i];
+            if (call !== '--' && call !== 'Db' && call !== 'Rd') {
+                lastBidIdx = i;
+                lastBid = call;
+                break;
+            }
+        }
+
+        if (!lastBid) return null;  // Passed out
+
+        // Parse level and strain from bid (e.g., "3N" -> level=3, strain=NT)
+        var level = parseInt(lastBid[0]);
+        var strainChar = lastBid[1];
+        var strain = strainChar === 'N' ? 'NT' : strainChar;
+
+        // Determine declarer: first player of winning partnership to bid the strain
+        var dealerOrder = ['N', 'E', 'S', 'W'];
+        var dealerIdx = dealerOrder.indexOf(dealer);
+        var bidderIdx = (dealerIdx + lastBidIdx) % 4;
+        var bidder = dealerOrder[bidderIdx];
+
+        // Winning partnership
+        var isNS = (bidder === 'N' || bidder === 'S');
+
+        // Find first player of that partnership to bid the strain
+        var declarer = bidder;
+        for (var i = 0; i <= lastBidIdx; i++) {
+            var call = calls[i];
+            if (call !== '--' && call !== 'Db' && call !== 'Rd') {
+                var callStrain = call[1] === 'N' ? 'NT' : call[1];
+                if (callStrain === strain) {
+                    var callerIdx = (dealerIdx + i) % 4;
+                    var caller = dealerOrder[callerIdx];
+                    var callerIsNS = (caller === 'N' || caller === 'S');
+                    if (callerIsNS === isNS) {
+                        declarer = caller;
+                        break;
+                    }
+                }
+            }
+        }
+
+        return { declarer: declarer, strain: strain, level: level };
+    }
+
+    // Render DD table HTML with optional contract highlighting
+    // userContract/bbaContract: { declarer: 'N', strain: 'NT', level: 3 } or null
+    function renderDDTable(dd, userContract, bbaContract) {
         if (!dd) return '';
 
         var suitKeys = ['C', 'D', 'H', 'S', 'NT'];
         var seats = ['N', 'S', 'E', 'W'];
+
+        // Colors matching the summary box
+        var greenBg = '#d4edda';
+        var greenText = '#155724';
+        var redBg = '#f8d7da';
+        var redText = '#721c24';
 
         var html = `
             <strong style="display: block; margin-bottom: 5px;">Double-Dummy Analysis:</strong>
@@ -287,12 +354,28 @@
         for (var i = 0; i < seats.length; i++) {
             var seat = seats[i];
             html += `<tr>
-                <td style="border: 1px solid #ddd; padding: 4px; font-weight: bold; background: #f9f9f9;">${seat}</td>`;
+                <td style="border: 1px solid #ddd; padding: 4px; font-weight: bold; text-align: center; background: #f9f9f9;">${seat}</td>`;
 
             for (var j = 0; j < suitKeys.length; j++) {
-                var tricks = dd[seat] ? dd[seat][suitKeys[j]] : '-';
+                var suitKey = suitKeys[j];
+                var tricks = dd[seat] ? dd[seat][suitKey] : '-';
                 if (tricks === undefined || tricks === null) tricks = '-';
-                html += `<td style="border: 1px solid #ddd; padding: 4px; text-align: center;">${tricks}</td>`;
+
+                // Check if this cell should be highlighted
+                var cellStyle = 'border: 1px solid #ddd; padding: 4px; text-align: center;';
+                var isUserContract = userContract && userContract.declarer === seat && userContract.strain === suitKey;
+                var isBbaContract = bbaContract && bbaContract.declarer === seat && bbaContract.strain === suitKey;
+
+                if (isUserContract && !isBbaContract) {
+                    cellStyle += ` background: ${greenBg}; color: ${greenText}; font-weight: bold;`;
+                } else if (isBbaContract && !isUserContract) {
+                    cellStyle += ` background: ${redBg}; color: ${redText}; font-weight: bold;`;
+                } else if (isUserContract && isBbaContract) {
+                    // Same contract - show green
+                    cellStyle += ` background: ${greenBg}; color: ${greenText}; font-weight: bold;`;
+                }
+
+                html += `<td style="${cellStyle}">${tricks}</td>`;
             }
             html += '</tr>';
         }
@@ -701,11 +784,15 @@
         `;
         panel.appendChild(ddDiv);
 
+        // Parse contracts for highlighting
+        var userContract = parseContract(result.actual, result.dealer);
+        var bbaContract = parseContract(result.expected, result.dealer);
+
         // Fetch DD asynchronously from BSOL
         if (result.pbn && result.vulnerability) {
             fetchDDFromBSOL(result.pbn, result.vulnerability).then(function(dd) {
                 if (dd) {
-                    ddDiv.innerHTML = renderDDTable(dd);
+                    ddDiv.innerHTML = renderDDTable(dd, userContract, bbaContract);
                 } else {
                     ddDiv.innerHTML = `
                         <strong style="display: block; margin-bottom: 5px;">Double-Dummy Analysis:</strong>
