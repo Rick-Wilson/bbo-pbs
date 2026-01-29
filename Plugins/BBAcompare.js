@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.8.3";
+    var CLIENT_VERSION = "1.8.4";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -55,23 +55,23 @@
             console.log("BBA Compare: Edge distances - top=" + distFromTop + ", bottom=" + distFromBottom +
                         ", left=" + distFromLeft + ", right=" + distFromRight);
 
-            // Determine which edge the marker is at (only one should be true)
-            if (isNearRightEdge && !isNearTopEdge && !isNearBottomEdge) {
-                dealer = 'E';  // Right edge, vertically centered
-            } else if (isNearLeftEdge && !isNearTopEdge && !isNearBottomEdge) {
-                dealer = 'W';  // Left edge, vertically centered
-            } else if (isNearTopEdge && !isNearLeftEdge && !isNearRightEdge) {
-                dealer = 'N';  // Top edge, horizontally centered
-            } else if (isNearBottomEdge && !isNearLeftEdge && !isNearRightEdge) {
-                dealer = 'S';  // Bottom edge, horizontally centered
-            } else if (isNearRightEdge) {
-                dealer = 'E';  // Fallback: prioritize horizontal edges
-            } else if (isNearLeftEdge) {
-                dealer = 'W';
+            // Determine which edge the marker is at
+            // Pattern observed:
+            //   North: top=0, left=0 (top-left corner)
+            //   East:  top=0, left=80 (top-right corner)
+            //   South: top=large, left varies
+            //   West:  top=centered, left=0
+            // Key insight: when near top, check left to distinguish N vs E
+            if (isNearTopEdge && isNearRightEdge) {
+                dealer = 'E';  // Top-right corner = East
             } else if (isNearTopEdge) {
-                dealer = 'N';
+                dealer = 'N';  // Top edge (including top-left corner) = North
             } else if (isNearBottomEdge) {
-                dealer = 'S';
+                dealer = 'S';  // Bottom edge = South
+            } else if (isNearLeftEdge) {
+                dealer = 'W';  // Left edge (when not near top/bottom) = West
+            } else if (isNearRightEdge) {
+                dealer = 'E';  // Right edge (when not near top) = East
             }
 
             if (dealer) {
