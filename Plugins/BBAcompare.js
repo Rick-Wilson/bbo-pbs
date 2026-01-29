@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.7.7";
+    var CLIENT_VERSION = "1.7.8";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -276,7 +276,8 @@
                     expectedBids: result.auction,
                     meanings: result.meanings,
                     conventions: result.conventionsUsed,
-                    boardNumber: dealData.boardNumber
+                    boardNumber: dealData.boardNumber,
+                    dealer: dealData.dealer
                 };
                 displayComparison(lastComparisonResult);
             } else {
@@ -391,11 +392,8 @@
             }
 
             // Determine dealer position for table layout
-            var boardNum = parseInt(result.boardNumber, 10) || 1;
-            var dealerPositions = ['W', 'N', 'E', 'S'];  // Column order
-            var dealerIndex = ['N', 'E', 'S', 'W'].indexOf(['N', 'E', 'S', 'W'][(boardNum - 1) % 4]);
             var columnOrder = ['W', 'N', 'E', 'S'];
-            var dealerColumn = columnOrder.indexOf(['N', 'E', 'S', 'W'][(boardNum - 1) % 4]);
+            var dealer = result.dealer || 'N';  // Use detected dealer from DOM
 
             // Build auction table (4 columns: W N E S)
             var table = document.createElement('table');
@@ -441,7 +439,6 @@
 
             // Body rows - arrange bids in W N E S columns
             var tbody = document.createElement('tbody');
-            var dealer = ['N', 'E', 'S', 'W'][(boardNum - 1) % 4];
             var startColumn = columnOrder.indexOf(dealer);
 
             // Pad with empty cells before dealer
