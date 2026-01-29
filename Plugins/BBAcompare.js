@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.7.5";
+    var CLIENT_VERSION = "1.7.6";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -28,13 +28,38 @@
         }
 
         if (dealerEl) {
-            var dealerText = dealerEl.textContent.trim();
-            console.log("BBA Compare: Found vulPanelDealerClass, text='" + dealerText + "'");
-            // Extract seat letter (N, E, S, W) from the text
-            var match = dealerText.match(/[NESW]/);
-            if (match) {
-                console.log("BBA Compare: Detected dealer from DOM: " + match[0]);
-                return match[0];
+            // The "D" marker position indicates dealer seat
+            // Position is set via inline style: top/left values relative to parent
+            var style = dealerEl.style;
+            var top = parseFloat(style.top) || 0;
+            var left = parseFloat(style.left) || 0;
+            var parentEl = dealerEl.parentElement;
+            var parentHeight = parentEl ? parentEl.offsetHeight : 150;
+            var parentWidth = parentEl ? parentEl.offsetWidth : 150;
+
+            console.log("BBA Compare: Dealer marker position - top=" + top + ", left=" + left +
+                        ", parent=" + parentWidth + "x" + parentHeight);
+
+            // Determine dealer from position (D marker is at the edge corresponding to dealer)
+            // Top edge = North, Right edge = East, Bottom edge = South, Left edge = West
+            var dealer = '';
+            var threshold = 30; // pixels from edge to be considered "at" that edge
+
+            if (top < threshold) {
+                dealer = 'N';  // Top edge
+            } else if (top > parentHeight - threshold - 30) {
+                dealer = 'S';  // Bottom edge (30 is approx height of D element)
+            } else if (left < threshold) {
+                dealer = 'W';  // Left edge
+            } else if (left > parentWidth - threshold - 30) {
+                dealer = 'E';  // Right edge
+            }
+
+            if (dealer) {
+                console.log("BBA Compare: Detected dealer from position: " + dealer);
+                return dealer;
+            } else {
+                console.log("BBA Compare: Could not determine dealer from position");
             }
         } else {
             console.log("BBA Compare: vulPanelDealerClass not found in DOM");
