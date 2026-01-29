@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.8.7";
+    var CLIENT_VERSION = "1.8.8";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -62,26 +62,27 @@
                 }
             }
 
-            // If transform didn't determine dealer, use position-based detection
+            // If transform didn't determine dealer, use position + dimensions
             if (!dealer) {
-                // Calculate distances from edges
-                var distFromTop = top;
-                var distFromBottom = parentHeight - top - 20;  // 20 = approx marker height
-                var distFromLeft = left;
-                var distFromRight = parentWidth - left - 20;   // 20 = approx marker width
+                // Get element dimensions - the D marker is a bar along one edge
+                // N/S: horizontal bars (width > height)
+                // E/W: vertical bars (height > width)
+                var elWidth = parseFloat(style.width) || dealerEl.offsetWidth || 20;
+                var elHeight = parseFloat(style.height) || dealerEl.offsetHeight || 20;
+                var isHorizontal = elWidth > elHeight;
 
-                console.log("BBA Compare: Edge distances - top=" + distFromTop + ", bottom=" + distFromBottom +
-                            ", left=" + distFromLeft + ", right=" + distFromRight);
+                console.log("BBA Compare: Element size - width=" + elWidth + ", height=" + elHeight +
+                            ", isHorizontal=" + isHorizontal);
 
-                // Position-based detection
-                if (distFromRight < 10) {
-                    dealer = 'E';  // Only E has right near 0
-                } else if (distFromTop > 50) {
-                    dealer = 'S';  // Only S has top far (80)
+                // Determine dealer from position + orientation
+                if (left > 50) {
+                    dealer = 'E';  // Right edge, vertical bar
+                } else if (top > 50) {
+                    dealer = 'S';  // Bottom edge, horizontal bar
+                } else if (isHorizontal) {
+                    dealer = 'N';  // Top edge, horizontal bar
                 } else {
-                    // N and W both have top=0, left=0 - cannot distinguish by position alone
-                    // Fall through to board number fallback
-                    console.log("BBA Compare: Position ambiguous (N or W), using board number fallback");
+                    dealer = 'W';  // Left edge, vertical bar
                 }
             }
 
