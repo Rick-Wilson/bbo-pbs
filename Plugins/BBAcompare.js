@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.9.1";
+    var CLIENT_VERSION = "1.9.2";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -238,16 +238,19 @@
                 return 0;
             }
 
-            // ddtricks format: 20 chars = 4 declarers × 5 suits
-            // Order: N(5), S(5), E(5), W(5) - each group is C,D,H,S,NT
+            // ddtricks format: 20 chars = 4 declarers × 5 denominations
+            // Declarer order: N, S, E, W (5 chars each)
+            // Suit order within each group: NT, S, H, D, C (reverse of standard ranking)
             var dd = {};
             var declarers = ['N', 'S', 'E', 'W'];
-            var suits = ['C', 'D', 'H', 'S', 'NT'];
+            // Map position in ddtricks to our suit keys
+            // Position 0=NT, 1=S, 2=H, 3=D, 4=C
+            var suitOrder = ['NT', 'S', 'H', 'D', 'C'];
 
             for (var i = 0; i < 4; i++) {
                 dd[declarers[i]] = {};
                 for (var j = 0; j < 5; j++) {
-                    dd[declarers[i]][suits[j]] = parseTricks(ddtricks[i * 5 + j]);
+                    dd[declarers[i]][suitOrder[j]] = parseTricks(ddtricks[i * 5 + j]);
                 }
             }
 
