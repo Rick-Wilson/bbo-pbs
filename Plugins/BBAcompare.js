@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.7.8";
+    var CLIENT_VERSION = "1.7.9";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -122,6 +122,121 @@
     var lastComparisonResult = null;
     var comparisonPanel = null;
     var lastComparedAuction = null;
+    // Try to get DD results from BBO's internal data structures
+    function getDDFromBBO() {
+        try {
+            // Try to find DD data in BBO's global scope
+            // BBO stores deal data in various places depending on the context
+
+            // Method 1: Check if there's a global deal object
+            if (typeof window !== 'undefined' && window.BBO && window.BBO.currentDeal) {
+                var deal = window.BBO.currentDeal;
+                if (deal.dd || deal.doubleDummy) {
+                    console.log("BBA Compare: Found DD in BBO.currentDeal");
+                    return formatDDData(deal.dd || deal.doubleDummy);
+                }
+            }
+
+            // Method 2: Look for DD in BBOAlert's accessible functions
+            if (typeof getDeal === 'function') {
+                var deal = getDeal();
+                if (deal && (deal.dd || deal.doubleDummy)) {
+                    console.log("BBA Compare: Found DD via getDeal()");
+                    return formatDDData(deal.dd || deal.doubleDummy);
+                }
+            }
+
+            // Method 3: Try to parse DD from the History panel's DOM
+            var historyDD = parseHistoryPanelDD();
+            if (historyDD) {
+                console.log("BBA Compare: Found DD in History panel");
+                return historyDD;
+            }
+
+            return null;
+        } catch (e) {
+            console.log("BBA Compare: Error getting DD: " + e);
+            return null;
+        }
+    }
+
+    // Parse DD table from BBO's History panel
+    function parseHistoryPanelDD() {
+        try {
+            // Look for BBO's DD display in the history panel
+            // BBO uses a specific table format for DD results
+            var nd = getNavDiv();
+            if (!nd) return null;
+
+            // BBO's DD table has a specific structure - look for it
+            var ddCells = $('td:contains("NT")', nd).closest('table');
+            if (ddCells.length === 0) return null;
+
+            // Try to parse the table
+            var rows = ddCells.find('tr');
+            if (rows.length < 2) return null;
+
+            // This is a placeholder - actual parsing depends on BBO's exact DOM structure
+            // which can change between updates
+            return null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Format DD data from various sources into standard structure
+    function formatDDData(ddData) {
+        if (!ddData) return null;
+
+        // Standard format: { N: {C:x, D:x, H:x, S:x, NT:x}, E:{...}, S:{...}, W:{...} }
+        // BBO might use different formats - normalize here
+        if (ddData.N && ddData.N.C !== undefined) {
+            return ddData;  // Already in correct format
+        }
+
+        // Try to convert from array format [N tricks, E tricks, S tricks, W tricks]
+        // or other common formats
+        return ddData;
+    }
+
+    // Render DD table HTML
+    function renderDDTable(dd) {
+        if (!dd) return '';
+
+        var suitKeys = ['C', 'D', 'H', 'S', 'NT'];
+        var seats = ['N', 'S', 'E', 'W'];
+
+        var html = `
+            <strong style="display: block; margin-bottom: 5px;">Double-Dummy Analysis:</strong>
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                <thead>
+                    <tr style="background: #f0f0f0;">
+                        <th style="border: 1px solid #ddd; padding: 4px;"></th>
+                        <th style="border: 1px solid #ddd; padding: 4px; color: #000;">♣</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; color: #d00;">♦</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; color: #d00;">♥</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; color: #000;">♠</th>
+                        <th style="border: 1px solid #ddd; padding: 4px;">NT</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        for (var i = 0; i < seats.length; i++) {
+            var seat = seats[i];
+            html += `<tr>
+                <td style="border: 1px solid #ddd; padding: 4px; font-weight: bold; background: #f9f9f9;">${seat}</td>`;
+
+            for (var j = 0; j < suitKeys.length; j++) {
+                var tricks = dd[seat] ? dd[seat][suitKeys[j]] : '-';
+                if (tricks === undefined || tricks === null) tricks = '-';
+                html += `<td style="border: 1px solid #ddd; padding: 4px; text-align: center;">${tricks}</td>`;
+            }
+            html += '</tr>';
+        }
+
+        html += `</tbody></table>`;
+        return html;
+    }
 
     // Check if auction is complete (ends with 3 passes)
     function isAuctionComplete(ctx) {
@@ -277,7 +392,9 @@
                     meanings: result.meanings,
                     conventions: result.conventionsUsed,
                     boardNumber: dealData.boardNumber,
-                    dealer: dealData.dealer
+                    dealer: dealData.dealer,
+                    pbn: dealData.pbn,
+                    vulnerability: dealData.vulnerability
                 };
                 displayComparison(lastComparisonResult);
             } else {
@@ -493,6 +610,27 @@
                 panel.appendChild(alertsDiv);
             }
         }
+
+        // Add DD table section
+        var ddDiv = document.createElement('div');
+        ddDiv.id = 'bba-dd-section';
+        ddDiv.style.cssText = 'margin-top: 10px; border-top: 1px solid #ccc; padding-top: 10px;';
+
+        // Try to get DD data from BBO's data structures
+        var dd = getDDFromBBO();
+        if (dd) {
+            ddDiv.innerHTML = renderDDTable(dd);
+        } else {
+            // Show placeholder - DD might be loaded asynchronously
+            ddDiv.innerHTML = `
+                <strong style="display: block; margin-bottom: 5px;">Double-Dummy Analysis:</strong>
+                <div style="font-size: 12px; color: #666; text-align: center; padding: 10px;">
+                    DD results not available.<br>
+                    <span style="font-size: 11px;">Open the History tab in BBO to view DD analysis.</span>
+                </div>
+            `;
+        }
+        panel.appendChild(ddDiv);
 
         // Add to page
         document.body.appendChild(panel);
