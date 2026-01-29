@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.8.8";
+    var CLIENT_VERSION = "1.9.0";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -157,81 +157,105 @@
     var comparisonPanel = null;
     var lastComparedAuction = null;
     var savedPanelPosition = null;  // Remember panel position across updates
-    // Try to get DD results from BBO's internal data structures
-    function getDDFromBBO() {
+
+    // Convert PBN deal string to BSOL format
+    // PBN: "N:AKQ.JT9.876.5432 JT9.AKQ.543.8765 876.543.AKQ.JT98 543.876.JT9.AKQ2"
+    // BSOL: "N:AKQ.JT9.876.5432xJT9.AKQ.543.8765x876.543.AKQ.JT98x543.876.JT9.AKQ2"
+    function pbnToBsolFormat(pbn) {
+        // Replace spaces with 'x' between hands
+        return pbn.replace(/ /g, 'x');
+    }
+
+    // Convert vulnerability to BSOL format
+    function vulToBsolFormat(vul) {
+        if (!vul || vul === 'None') return 'None';
+        if (vul === 'Both' || vul === 'All') return 'All';
+        return vul;  // NS or EW
+    }
+
+    // Fetch DD results from BSOL (Bridgewebs DD solver)
+    async function fetchDDFromBSOL(pbn, vulnerability) {
         try {
-            // Try to find DD data in BBO's global scope
-            // BBO stores deal data in various places depending on the context
+            var dealstr = pbnToBsolFormat(pbn);
+            var vul = vulToBsolFormat(vulnerability);
+            var url = `https://dds.bridgewebs.com/cgi-bin/bsol2/ddummy?request=m&dealstr=${encodeURIComponent(dealstr)}&vul=${vul}&club=bbacompare`;
 
-            // Method 1: Check if there's a global deal object
-            if (typeof window !== 'undefined' && window.BBO && window.BBO.currentDeal) {
-                var deal = window.BBO.currentDeal;
-                if (deal.dd || deal.doubleDummy) {
-                    console.log("BBA Compare: Found DD in BBO.currentDeal");
-                    return formatDDData(deal.dd || deal.doubleDummy);
-                }
+            console.log("BBA Compare: Fetching DD from BSOL: " + url);
+            var startTime = Date.now();
+
+            var response = await fetch(url);
+            if (!response.ok) {
+                console.log("BBA Compare: BSOL request failed with status " + response.status);
+                return null;
             }
 
-            // Method 2: Look for DD in BBOAlert's accessible functions
-            if (typeof getDeal === 'function') {
-                var deal = getDeal();
-                if (deal && (deal.dd || deal.doubleDummy)) {
-                    console.log("BBA Compare: Found DD via getDeal()");
-                    return formatDDData(deal.dd || deal.doubleDummy);
-                }
-            }
+            var text = await response.text();
+            var elapsed = ((Date.now() - startTime) / 1000).toFixed(3);
+            console.log("BBA Compare: BSOL response received in " + elapsed + " sec");
 
-            // Method 3: Try to parse DD from the History panel's DOM
-            var historyDD = parseHistoryPanelDD();
-            if (historyDD) {
-                console.log("BBA Compare: Found DD in History panel");
-                return historyDD;
-            }
-
-            return null;
+            return parseBsolResponse(text);
         } catch (e) {
-            console.log("BBA Compare: Error getting DD: " + e);
+            console.log("BBA Compare: Error fetching DD from BSOL: " + e);
             return null;
         }
     }
 
-    // Parse DD table from BBO's History panel
-    function parseHistoryPanelDD() {
+    // Parse BSOL response into our DD format
+    // BSOL returns: "n]s]e]w]" where each section has tricks for C,D,H,S,NT
+    // Example: "7a6898a689769876]" means N can make 7C, 10D, 6H, 8S, 9NT (a=10, etc)
+    function parseBsolResponse(text) {
         try {
-            // Look for BBO's DD display in the history panel
-            // BBO uses a specific table format for DD results
-            var nd = getNavDiv();
-            if (!nd) return null;
+            // BSOL response format: numbers/letters for tricks (0-9, a=10, b=11, c=12, d=13)
+            // Order: C D H S N (clubs, diamonds, hearts, spades, NT)
+            // Sections separated by ] for each declarer: N, S, E, W
 
-            // BBO's DD table has a specific structure - look for it
-            var ddCells = $('td:contains("NT")', nd).closest('table');
-            if (ddCells.length === 0) return null;
+            // Remove any whitespace
+            text = text.trim();
 
-            // Try to parse the table
-            var rows = ddCells.find('tr');
-            if (rows.length < 2) return null;
+            // Check for error response
+            if (text.startsWith('Error') || text.length < 20) {
+                console.log("BBA Compare: BSOL returned error or invalid response: " + text);
+                return null;
+            }
 
-            // This is a placeholder - actual parsing depends on BBO's exact DOM structure
-            // which can change between updates
+            // Parse the response - format is: NNNNNsSSSSSeEEEEEwWWWWW
+            // Each group of 5 is C,D,H,S,NT tricks for that declarer
+            // Lowercase letters separate the groups (n,s,e,w at start of each section)
+
+            function parseTricks(char) {
+                if (char >= '0' && char <= '9') return parseInt(char);
+                if (char >= 'a' && char <= 'd') return 10 + (char.charCodeAt(0) - 'a'.charCodeAt(0));
+                if (char >= 'A' && char <= 'D') return 10 + (char.charCodeAt(0) - 'A'.charCodeAt(0));
+                return 0;
+            }
+
+            // Try to parse assuming format: 5 chars per declarer, separated by ]
+            var sections = text.split(']');
+            if (sections.length >= 4) {
+                var dd = {};
+                var declarers = ['N', 'S', 'E', 'W'];
+                var suits = ['C', 'D', 'H', 'S', 'NT'];
+
+                for (var i = 0; i < 4; i++) {
+                    var section = sections[i];
+                    if (section.length >= 5) {
+                        dd[declarers[i]] = {};
+                        for (var j = 0; j < 5; j++) {
+                            dd[declarers[i]][suits[j]] = parseTricks(section[j]);
+                        }
+                    }
+                }
+
+                console.log("BBA Compare: Parsed DD results:", JSON.stringify(dd));
+                return dd;
+            }
+
+            console.log("BBA Compare: Could not parse BSOL response: " + text);
             return null;
         } catch (e) {
+            console.log("BBA Compare: Error parsing BSOL response: " + e);
             return null;
         }
-    }
-
-    // Format DD data from various sources into standard structure
-    function formatDDData(ddData) {
-        if (!ddData) return null;
-
-        // Standard format: { N: {C:x, D:x, H:x, S:x, NT:x}, E:{...}, S:{...}, W:{...} }
-        // BBO might use different formats - normalize here
-        if (ddData.N && ddData.N.C !== undefined) {
-            return ddData;  // Already in correct format
-        }
-
-        // Try to convert from array format [N tricks, E tricks, S tricks, W tricks]
-        // or other common formats
-        return ddData;
     }
 
     // Render DD table HTML
@@ -664,21 +688,37 @@
         ddDiv.id = 'bba-dd-section';
         ddDiv.style.cssText = 'margin-top: 10px; border-top: 1px solid #ccc; padding-top: 10px;';
 
-        // Try to get DD data from BBO's data structures
-        var dd = getDDFromBBO();
-        if (dd) {
-            ddDiv.innerHTML = renderDDTable(dd);
+        // Show loading state while fetching from BSOL
+        ddDiv.innerHTML = `
+            <strong style="display: block; margin-bottom: 5px;">Double-Dummy Analysis:</strong>
+            <div style="font-size: 12px; color: #666; text-align: center; padding: 10px;">
+                Loading DD results...
+            </div>
+        `;
+        panel.appendChild(ddDiv);
+
+        // Fetch DD asynchronously from BSOL
+        if (result.pbn && result.vulnerability) {
+            fetchDDFromBSOL(result.pbn, result.vulnerability).then(function(dd) {
+                if (dd) {
+                    ddDiv.innerHTML = renderDDTable(dd);
+                } else {
+                    ddDiv.innerHTML = `
+                        <strong style="display: block; margin-bottom: 5px;">Double-Dummy Analysis:</strong>
+                        <div style="font-size: 12px; color: #666; text-align: center; padding: 10px;">
+                            DD results unavailable.
+                        </div>
+                    `;
+                }
+            });
         } else {
-            // Show placeholder - DD might be loaded asynchronously
             ddDiv.innerHTML = `
                 <strong style="display: block; margin-bottom: 5px;">Double-Dummy Analysis:</strong>
                 <div style="font-size: 12px; color: #666; text-align: center; padding: 10px;">
-                    DD results not available.<br>
-                    <span style="font-size: 11px;">Open the History tab in BBO to view DD analysis.</span>
+                    DD requires deal data.
                 </div>
             `;
         }
-        panel.appendChild(ddDiv);
 
         // Add to top-level page (outside iframe) so it's not clipped
         var targetDoc = document;
