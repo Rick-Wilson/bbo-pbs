@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.7.9";
+    var CLIENT_VERSION = "1.8.0";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -632,12 +632,24 @@
         }
         panel.appendChild(ddDiv);
 
-        // Add to page
-        document.body.appendChild(panel);
+        // Add to top-level page (outside iframe) so it's not clipped
+        var targetBody = document.body;
+        try {
+            // Try to access top-level document (BBO runs in iframe)
+            if (window.top && window.top.document && window.top.document.body) {
+                targetBody = window.top.document.body;
+                console.log("BBA Compare: Attaching panel to top-level document");
+            }
+        } catch (e) {
+            // Cross-origin restriction - fall back to current document
+            console.log("BBA Compare: Cannot access top document, using iframe document");
+        }
+
+        targetBody.appendChild(panel);
         comparisonPanel = panel;
 
         // Close button handler
-        document.getElementById('bba-close-btn').onclick = function() {
+        panel.querySelector('#bba-close-btn').onclick = function() {
             panel.remove();
             comparisonPanel = null;
         };
