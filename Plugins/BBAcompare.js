@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.9.4";
+    var CLIENT_VERSION = "1.9.5";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -403,11 +403,13 @@
             // Auto-refresh when a new bid is made - check if auction just completed
             addBBOalertEvent("onNewAuction", function () {
                 var ctx = getContext();
-                console.log("BBA Compare: onNewAuction fired, ctx=" + ctx + ", complete=" + isAuctionComplete(ctx) + ", lastCompared=" + lastComparedAuction);
+                var boardNum = getDealNumber();
+                var comparisonKey = boardNum + ":" + ctx;  // Include board number to handle same auctions on different boards
+                console.log("BBA Compare: onNewAuction fired, ctx=" + ctx + ", board=" + boardNum + ", complete=" + isAuctionComplete(ctx) + ", lastCompared=" + lastComparedAuction);
                 if (cfg.Enable_Comparison && cfg.Show_Panel) {
-                    if (isAuctionComplete(ctx) && ctx !== lastComparedAuction) {
+                    if (isAuctionComplete(ctx) && comparisonKey !== lastComparedAuction) {
                         console.log("BBA Compare: Triggering comparison from onNewAuction");
-                        lastComparedAuction = ctx;
+                        lastComparedAuction = comparisonKey;
                         compareAuction();
                     }
                 }
@@ -416,11 +418,13 @@
             // Also trigger on deal end (when result panel shows)
             addBBOalertEvent("onDealEnd", function () {
                 var ctx = getContext();
-                console.log("BBA Compare: onDealEnd fired, ctx=" + ctx + ", complete=" + isAuctionComplete(ctx));
+                var boardNum = getDealNumber();
+                var comparisonKey = boardNum + ":" + ctx;  // Include board number to handle same auctions on different boards
+                console.log("BBA Compare: onDealEnd fired, ctx=" + ctx + ", board=" + boardNum + ", complete=" + isAuctionComplete(ctx));
                 if (cfg.Enable_Comparison && cfg.Show_Panel) {
-                    if (isAuctionComplete(ctx) && ctx !== lastComparedAuction) {
+                    if (isAuctionComplete(ctx) && comparisonKey !== lastComparedAuction) {
                         console.log("BBA Compare: Triggering comparison from onDealEnd");
-                        lastComparedAuction = ctx;
+                        lastComparedAuction = comparisonKey;
                         compareAuction();
                     }
                 }
