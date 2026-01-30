@@ -8,7 +8,7 @@
 
     // Start function called by the Auction Compare button
     // Only enables - stopping is done by closing the panel (X button)
-    window.toggleBBACompare = function() {
+    window.startBBACompare = function() {
         window.bbaCompareEnabled = true;
         console.log("BBA Compare: Enabled via Auction Compare button");
 
