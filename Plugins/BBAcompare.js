@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.9.5";
+    var CLIENT_VERSION = "1.9.6";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
@@ -511,8 +511,8 @@
             }
         };
 
-        // Add scenario if specified (prefer window.currentPBSScenario set by scenario buttons)
-        var scenario = window.currentPBSScenario || cfg.Scenario_Name;
+        // Add scenario if specified (prefer window.currentPBSScenarioFilename set by PBS scenario buttons)
+        var scenario = window.currentPBSScenarioFilename || cfg.Scenario_Name;
         if (scenario && scenario.trim()) {
             requestBody.scenario = scenario.trim();
         }
