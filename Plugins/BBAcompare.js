@@ -1,28 +1,21 @@
 (function () {
-    var CLIENT_VERSION = "1.9.7";
+    var CLIENT_VERSION = "1.9.8";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
-    // Global toggle - controlled by Auction Compare button
+    // Global enable flag - controlled by Auction Compare button (start) and panel close (stop)
     // Initially disabled until user clicks the button
     window.bbaCompareEnabled = false;
 
-    // Toggle function called by the Auction Compare button
+    // Start function called by the Auction Compare button
+    // Only enables - stopping is done by closing the panel (X button)
     window.toggleBBACompare = function() {
-        window.bbaCompareEnabled = !window.bbaCompareEnabled;
-        console.log("BBA Compare: Toggled to " + (window.bbaCompareEnabled ? "enabled" : "disabled"));
+        window.bbaCompareEnabled = true;
+        console.log("BBA Compare: Enabled via Auction Compare button");
 
-        if (window.bbaCompareEnabled) {
-            // If enabling, try to run a comparison immediately if auction is complete
-            var ctx = getContext();
-            if (isAuctionComplete(ctx)) {
-                compareAuction();
-            }
-        } else {
-            // If disabling, close the panel if open
-            if (comparisonPanel) {
-                comparisonPanel.remove();
-                comparisonPanel = null;
-            }
+        // Try to run a comparison immediately if auction is complete
+        var ctx = getContext();
+        if (isAuctionComplete(ctx)) {
+            compareAuction();
         }
         return window.bbaCompareEnabled;
     };
