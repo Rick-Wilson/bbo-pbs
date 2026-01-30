@@ -1,6 +1,31 @@
 (function () {
-    var CLIENT_VERSION = "1.9.6";
+    var CLIENT_VERSION = "1.9.7";
     console.log("BBA Compare version " + CLIENT_VERSION);
+
+    // Global toggle - controlled by Auction Compare button
+    // Initially disabled until user clicks the button
+    window.bbaCompareEnabled = false;
+
+    // Toggle function called by the Auction Compare button
+    window.toggleBBACompare = function() {
+        window.bbaCompareEnabled = !window.bbaCompareEnabled;
+        console.log("BBA Compare: Toggled to " + (window.bbaCompareEnabled ? "enabled" : "disabled"));
+
+        if (window.bbaCompareEnabled) {
+            // If enabling, try to run a comparison immediately if auction is complete
+            var ctx = getContext();
+            if (isAuctionComplete(ctx)) {
+                compareAuction();
+            }
+        } else {
+            // If disabling, close the panel if open
+            if (comparisonPanel) {
+                comparisonPanel.remove();
+                comparisonPanel = null;
+            }
+        }
+        return window.bbaCompareEnabled;
+    };
 
     // Helper function to convert hand to PBN format (from PBNcapture.js)
     function hand2PBN(t) {
@@ -143,14 +168,12 @@
     }
 
     // Plugin configuration
+    // Note: Enable/disable is now controlled by window.bbaCompareEnabled via the Auction Compare button
     var title = "BBA Auction Comparison";
     var cfg = {};
-    cfg.Enable_Comparison = false;
-    cfg.Show_Panel = true;
     cfg.BBA_Server_URL = "https://bba.harmonicsystems.com";
     cfg.API_Key = "";
-    cfg.Scenario_Name = "";
-    cfg.Compare_Now = false;
+    cfg.Scenario_Name = "";  // Fallback - prefer window.currentPBSScenarioFilename
 
     // Comparison state
     var lastComparisonResult = null;
@@ -391,45 +414,39 @@
 
     // Plugin initialization
     addBBOalertEvent("onDataLoad", function () {
-        if (addConfigBox(title, cfg) != null) {
-            // Manual button trigger via checkbox toggle
-            addBBOalertEvent("onAnyMutation", function () {
-                if (cfg.Compare_Now) {
-                    cfg.Compare_Now = false;
+        // Register config box for settings (BBA_Server_URL, API_Key, Scenario_Name)
+        // Note: Enable_Comparison is now controlled by window.bbaCompareEnabled via the Auction Compare button
+        addConfigBox(title, cfg);
+
+        // Auto-refresh when a new bid is made - check if auction just completed
+        addBBOalertEvent("onNewAuction", function () {
+            var ctx = getContext();
+            var boardNum = getDealNumber();
+            var comparisonKey = boardNum + ":" + ctx;  // Include board number to handle same auctions on different boards
+            console.log("BBA Compare: onNewAuction fired, ctx=" + ctx + ", board=" + boardNum + ", complete=" + isAuctionComplete(ctx) + ", enabled=" + window.bbaCompareEnabled + ", lastCompared=" + lastComparedAuction);
+            if (window.bbaCompareEnabled) {
+                if (isAuctionComplete(ctx) && comparisonKey !== lastComparedAuction) {
+                    console.log("BBA Compare: Triggering comparison from onNewAuction");
+                    lastComparedAuction = comparisonKey;
                     compareAuction();
                 }
-            });
+            }
+        });
 
-            // Auto-refresh when a new bid is made - check if auction just completed
-            addBBOalertEvent("onNewAuction", function () {
-                var ctx = getContext();
-                var boardNum = getDealNumber();
-                var comparisonKey = boardNum + ":" + ctx;  // Include board number to handle same auctions on different boards
-                console.log("BBA Compare: onNewAuction fired, ctx=" + ctx + ", board=" + boardNum + ", complete=" + isAuctionComplete(ctx) + ", lastCompared=" + lastComparedAuction);
-                if (cfg.Enable_Comparison && cfg.Show_Panel) {
-                    if (isAuctionComplete(ctx) && comparisonKey !== lastComparedAuction) {
-                        console.log("BBA Compare: Triggering comparison from onNewAuction");
-                        lastComparedAuction = comparisonKey;
-                        compareAuction();
-                    }
+        // Also trigger on deal end (when result panel shows)
+        addBBOalertEvent("onDealEnd", function () {
+            var ctx = getContext();
+            var boardNum = getDealNumber();
+            var comparisonKey = boardNum + ":" + ctx;  // Include board number to handle same auctions on different boards
+            console.log("BBA Compare: onDealEnd fired, ctx=" + ctx + ", board=" + boardNum + ", complete=" + isAuctionComplete(ctx) + ", enabled=" + window.bbaCompareEnabled);
+            if (window.bbaCompareEnabled) {
+                if (isAuctionComplete(ctx) && comparisonKey !== lastComparedAuction) {
+                    console.log("BBA Compare: Triggering comparison from onDealEnd");
+                    lastComparedAuction = comparisonKey;
+                    compareAuction();
                 }
-            });
-
-            // Also trigger on deal end (when result panel shows)
-            addBBOalertEvent("onDealEnd", function () {
-                var ctx = getContext();
-                var boardNum = getDealNumber();
-                var comparisonKey = boardNum + ":" + ctx;  // Include board number to handle same auctions on different boards
-                console.log("BBA Compare: onDealEnd fired, ctx=" + ctx + ", board=" + boardNum + ", complete=" + isAuctionComplete(ctx));
-                if (cfg.Enable_Comparison && cfg.Show_Panel) {
-                    if (isAuctionComplete(ctx) && comparisonKey !== lastComparedAuction) {
-                        console.log("BBA Compare: Triggering comparison from onDealEnd");
-                        lastComparedAuction = comparisonKey;
-                        compareAuction();
-                    }
-                }
-            });
-        }
+            }
+        });
     });
 
     // Collect deal data from BBO
@@ -835,11 +852,14 @@
         comparisonPanel = panel;
 
         // Close button handler - use addEventListener for robustness
+        // Closing the panel disables BBA Compare until user clicks the button again
         var closeBtn = panel.querySelector('#bba-close-btn');
         if (closeBtn) {
             closeBtn.addEventListener('click', function() {
                 panel.remove();
                 comparisonPanel = null;
+                window.bbaCompareEnabled = false;
+                console.log("BBA Compare: Panel closed, comparisons disabled until button clicked");
             });
         }
 
