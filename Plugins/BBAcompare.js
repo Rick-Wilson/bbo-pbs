@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.9.13";
+    var CLIENT_VERSION = "1.9.14";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Panel element references
@@ -343,16 +343,36 @@
 
         // Close panel on logout to prevent orphaned panels
         addBBOalertEvent("onLogoff", function () {
-            console.log("BBA Compare: Logoff detected, closing panel");
+            console.log("BBA Compare: onLogoff event fired");
             closePanel();
         });
 
         // Also close panel when leaving table
         addBBOalertEvent("onTableHidden", function () {
-            console.log("BBA Compare: Table hidden, closing panel");
+            console.log("BBA Compare: onTableHidden event fired");
             closePanel();
         });
+
+        // Additional cleanup: watch for BBO navigation away from table
+        // The auction box being hidden often indicates we're leaving the table context
+        addBBOalertEvent("onAuctionBoxHidden", function () {
+            console.log("BBA Compare: onAuctionBoxHidden event fired");
+            // Don't close immediately - auction box hides between boards
+            // Only close if we're still enabled but no longer at a table
+        });
     });
+
+    // Also try to catch page unload in the top-level document
+    try {
+        if (window.top && window.top !== window) {
+            window.top.addEventListener('beforeunload', function() {
+                console.log("BBA Compare: Top window beforeunload");
+                closePanel();
+            });
+        }
+    } catch (e) {
+        // Cross-origin - ignore
+    }
 
     function collectDealData() {
         try {
@@ -550,25 +570,46 @@
 
     // Close and remove the panel
     function closePanel() {
+        console.log("BBA Compare: closePanel() called");
+        var removed = false;
+
         if (panel && panel.parentNode) {
             panel.remove();
+            removed = true;
+            console.log("BBA Compare: Removed panel via reference");
         }
-        // Also clean up by ID
+
+        // Also clean up by ID (belt and suspenders)
         try {
             var p = document.getElementById('bba-compare-panel');
-            if (p) p.remove();
+            if (p) {
+                p.remove();
+                removed = true;
+                console.log("BBA Compare: Removed panel from iframe document by ID");
+            }
             if (window.top && window.top.document) {
                 var tp = window.top.document.getElementById('bba-compare-panel');
-                if (tp) tp.remove();
+                if (tp) {
+                    tp.remove();
+                    removed = true;
+                    console.log("BBA Compare: Removed panel from top-level document by ID");
+                }
             }
-        } catch (e) {}
+        } catch (e) {
+            console.log("BBA Compare: Error during cleanup: " + e);
+        }
 
         panel = null;
         panelContent = null;
         panelHeader = null;
         panelTitleEl = null;
         window.bbaCompareEnabled = false;
-        console.log("BBA Compare: Panel closed, comparisons disabled");
+
+        if (removed) {
+            console.log("BBA Compare: Panel closed successfully");
+        } else {
+            console.log("BBA Compare: No panel found to close");
+        }
     }
 
     // Show waiting content in the panel
