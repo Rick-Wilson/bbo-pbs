@@ -519,12 +519,16 @@ function setTabEvents() {
 	window.xxxx = tabs;
 	if (parent.document.querySelector(".verticalTabBarClass").onmouseup == null)
 		parent.document.querySelector(".verticalTabBarClass").onmouseup = function () {
-			$("tab-bar-button", parent.document).css("pointer-events", "");
+			if (parent && parent.document) {
+				$("tab-bar-button", parent.document).css("pointer-events", "");
+			}
 		}
 	for (var i = 0; i < tabs.length; i++) {
 		if (tabs[i].textContent.search('BBOalert') == -1) {
 			if (tabs[i].onmousedown == null) tabs[i].onmousedown = function () {
-				$("tab-bar-button", parent.document).has(".selected.covered").css("pointer-events", "none");
+				if (parent && parent.document) {
+					$("tab-bar-button", parent.document).has(".selected.covered").css("pointer-events", "none");
+				}
 				setOptionsOff();
 			}
 		}
