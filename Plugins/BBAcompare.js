@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.9.8";
+    var CLIENT_VERSION = "1.9.9";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Global enable flag - controlled by Auction Compare button (start) and panel close (stop)
@@ -500,7 +500,7 @@
 
     // Compare auction with BBA server
     async function compareAuction() {
-        if (!cfg.Enable_Comparison) {
+        if (!window.bbaCompareEnabled) {
             bboalertLog("BBA Comparison is not enabled");
             return;
         }
