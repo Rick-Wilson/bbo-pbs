@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.9.14";
+    var CLIENT_VERSION = "1.9.15";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Panel element references
@@ -360,6 +360,23 @@
             // Don't close immediately - auction box hides between boards
             // Only close if we're still enabled but no longer at a table
         });
+    });
+
+    // Catch iframe unload - this fires when BBO destroys the iframe during logout
+    // This is more reliable than onLogoff which depends on the MutationObserver
+    window.addEventListener('unload', function() {
+        console.log("BBA Compare: Iframe window unload");
+        // Use direct DOM manipulation since our references may already be invalid
+        try {
+            var p = document.getElementById('bba-compare-panel');
+            if (p) p.remove();
+            if (window.top && window.top.document) {
+                var tp = window.top.document.getElementById('bba-compare-panel');
+                if (tp) tp.remove();
+            }
+        } catch (e) {
+            // Ignore errors during unload
+        }
     });
 
     // Also try to catch page unload in the top-level document
