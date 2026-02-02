@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.9.9";
+    var CLIENT_VERSION = "1.9.10";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Global enable flag - controlled by Auction Compare button (start) and panel close (stop)
@@ -16,6 +16,9 @@
         var ctx = getContext();
         if (isAuctionComplete(ctx)) {
             compareAuction();
+        } else {
+            // Show waiting panel so user knows it's active
+            displayWaitingPanel();
         }
         return window.bbaCompareEnabled;
     };
@@ -567,6 +570,151 @@
         }
     }
 
+    // Get target document for panel (top-level if accessible, otherwise iframe)
+    function getTargetDocument() {
+        try {
+            if (window.top && window.top.document && window.top.document.body) {
+                return { doc: window.top.document, body: window.top.document.body };
+            }
+        } catch (e) {
+            // Cross-origin restriction
+        }
+        return { doc: document, body: document.body };
+    }
+
+    // Remove any existing panels by ID (prevents orphaned panels)
+    function removeExistingPanels() {
+        var panelId = 'bba-compare-panel';
+
+        // Save position from current panel reference if valid
+        if (comparisonPanel && comparisonPanel.parentNode) {
+            savedPanelPosition = {
+                top: comparisonPanel.style.top,
+                left: comparisonPanel.style.left,
+                right: comparisonPanel.style.right
+            };
+        }
+
+        // Remove from iframe document
+        var iframePanel = document.getElementById(panelId);
+        if (iframePanel) {
+            // Save position if we haven't already
+            if (!savedPanelPosition) {
+                savedPanelPosition = {
+                    top: iframePanel.style.top,
+                    left: iframePanel.style.left,
+                    right: iframePanel.style.right
+                };
+            }
+            iframePanel.remove();
+            console.log("BBA Compare: Removed panel from iframe document");
+        }
+
+        // Remove from top-level document
+        try {
+            if (window.top && window.top.document) {
+                var topPanel = window.top.document.getElementById(panelId);
+                if (topPanel) {
+                    if (!savedPanelPosition) {
+                        savedPanelPosition = {
+                            top: topPanel.style.top,
+                            left: topPanel.style.left,
+                            right: topPanel.style.right
+                        };
+                    }
+                    topPanel.remove();
+                    console.log("BBA Compare: Removed panel from top-level document");
+                }
+            }
+        } catch (e) {
+            // Cross-origin restriction - can't access top document
+        }
+
+        comparisonPanel = null;
+    }
+
+    // Display a "Waiting for auction" panel
+    function displayWaitingPanel() {
+        removeExistingPanels();
+
+        var panel = document.createElement('div');
+        panel.id = 'bba-compare-panel';
+
+        // Use saved position if available
+        var posTop = savedPanelPosition ? savedPanelPosition.top : '100px';
+        var posLeft = savedPanelPosition ? savedPanelPosition.left : '';
+        var posRight = savedPanelPosition && savedPanelPosition.right !== 'auto' ? savedPanelPosition.right : '50px';
+
+        panel.style.cssText = `
+            position: fixed;
+            top: ${posTop};
+            ${posLeft ? 'left: ' + posLeft + ';' : ''}
+            ${posLeft ? '' : 'right: ' + posRight + ';'}
+            width: 320px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            z-index: 10000;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+
+        // Header with close button
+        var header = document.createElement('div');
+        header.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            cursor: move;
+        `;
+        header.innerHTML = `
+            <strong style="font-size: 16px;">BBA Comparison</strong>
+            <button id="bba-close-btn" style="border:none;background:none;cursor:pointer;font-size:20px;color:#666;">&times;</button>
+        `;
+        panel.appendChild(header);
+
+        // Waiting message
+        var waitingDiv = document.createElement('div');
+        waitingDiv.style.cssText = `
+            padding: 20px;
+            text-align: center;
+            color: #666;
+        `;
+        waitingDiv.innerHTML = `
+            <div style="font-size: 24px; margin-bottom: 10px;">⏳</div>
+            <div>Waiting for auction to complete...</div>
+            <div style="font-size: 12px; margin-top: 10px; color: #999;">
+                Comparison will appear automatically when bidding ends.
+            </div>
+        `;
+        panel.appendChild(waitingDiv);
+
+        // Add to target document
+        var target = getTargetDocument();
+        target.body.appendChild(panel);
+        comparisonPanel = panel;
+
+        // Close button handler
+        var closeBtn = panel.querySelector('#bba-close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                removeExistingPanels();
+                window.bbaCompareEnabled = false;
+                console.log("BBA Compare: Panel closed, comparisons disabled until button clicked");
+            });
+        }
+
+        // Make draggable
+        makeDraggable(panel, header, target.doc);
+
+        console.log("BBA Compare: Displayed waiting panel");
+    }
+
     // Convert 2-char auction format to bid array
     function auctionToArray(ctx) {
         var bids = [];
@@ -583,17 +731,8 @@
 
     // Display comparison results
     function displayComparison(result) {
-        // Remove existing panel, saving its position
-        if (comparisonPanel) {
-            // Save position before removing
-            savedPanelPosition = {
-                top: comparisonPanel.style.top,
-                left: comparisonPanel.style.left,
-                right: comparisonPanel.style.right
-            };
-            comparisonPanel.remove();
-            comparisonPanel = null;
-        }
+        // Remove any existing panels (by ID, not just reference - prevents orphaned panels)
+        removeExistingPanels();
 
         var actualBids = auctionToArray(result.actual);
         var expectedBids = result.expectedBids || auctionToArray(result.expected);
@@ -827,37 +966,24 @@
         }
 
         // Add to top-level page (outside iframe) so it's not clipped
-        var targetDoc = document;
-        var targetBody = document.body;
-        try {
-            // Try to access top-level document (BBO runs in iframe)
-            if (window.top && window.top.document && window.top.document.body) {
-                targetDoc = window.top.document;
-                targetBody = window.top.document.body;
-                console.log("BBA Compare: Attaching panel to top-level document");
-            }
-        } catch (e) {
-            // Cross-origin restriction - fall back to current document
-            console.log("BBA Compare: Cannot access top document, using iframe document");
-        }
-
-        targetBody.appendChild(panel);
+        var target = getTargetDocument();
+        target.body.appendChild(panel);
         comparisonPanel = panel;
+        console.log("BBA Compare: Attached panel to " + (target.doc === document ? "iframe" : "top-level") + " document");
 
         // Close button handler - use addEventListener for robustness
         // Closing the panel disables BBA Compare until user clicks the button again
         var closeBtn = panel.querySelector('#bba-close-btn');
         if (closeBtn) {
             closeBtn.addEventListener('click', function() {
-                panel.remove();
-                comparisonPanel = null;
+                removeExistingPanels();
                 window.bbaCompareEnabled = false;
                 console.log("BBA Compare: Panel closed, comparisons disabled until button clicked");
             });
         }
 
         // Make draggable (pass target document for event handlers)
-        makeDraggable(panel, header, targetDoc);
+        makeDraggable(panel, header, target.doc);
 
         bboalertLog(match ? "Auctions match!" : "Auctions differ - see comparison panel");
     }
