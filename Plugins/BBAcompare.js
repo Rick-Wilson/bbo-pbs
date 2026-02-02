@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.9.15";
+    var CLIENT_VERSION = "1.9.16";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Panel element references
@@ -528,12 +528,16 @@
             top: 100px;
             right: 50px;
             width: 320px;
-            max-height: 500px;
-            overflow-y: auto;
+            height: 400px;
+            min-height: 150px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
             background: white;
             border: 2px solid #333;
             border-radius: 8px;
             padding: 15px;
+            padding-bottom: 5px;
             z-index: 10000;
             font-family: Arial, sans-serif;
             font-size: 14px;
@@ -573,13 +577,34 @@
         // Content area (gets updated)
         panelContent = document.createElement('div');
         panelContent.id = 'bba-panel-content';
+        panelContent.style.cssText = `
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+        `;
         panel.appendChild(panelContent);
+
+        // Resize handle at bottom
+        var resizeHandle = document.createElement('div');
+        resizeHandle.id = 'bba-resize-handle';
+        resizeHandle.style.cssText = `
+            height: 12px;
+            cursor: ns-resize;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 5px;
+            border-top: 1px solid #ddd;
+        `;
+        resizeHandle.innerHTML = '<div style="width: 40px; height: 4px; background: #ccc; border-radius: 2px;"></div>';
+        panel.appendChild(resizeHandle);
 
         // Add to document
         target.body.appendChild(panel);
 
-        // Make draggable
+        // Make draggable and resizable
         makeDraggable(panel, panelHeader, target.doc);
+        makeResizable(panel, resizeHandle, target.doc);
 
         console.log("BBA Compare: Created panel");
         return panelContent;
@@ -847,6 +872,46 @@
             if (doc !== document) {
                 document.removeEventListener('mouseup', closeDragElement);
                 document.removeEventListener('mousemove', elementDrag);
+            }
+        }
+    }
+
+    // Make element vertically resizable
+    function makeResizable(panel, handle, targetDoc) {
+        var startY = 0, startHeight = 0;
+        var doc = targetDoc || document;
+
+        handle.addEventListener('mousedown', resizeMouseDown);
+
+        function resizeMouseDown(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            startY = e.clientY;
+            startHeight = panel.offsetHeight;
+            doc.addEventListener('mouseup', closeResizeElement);
+            doc.addEventListener('mousemove', elementResize);
+            if (doc !== document) {
+                document.addEventListener('mouseup', closeResizeElement);
+                document.addEventListener('mousemove', elementResize);
+            }
+        }
+
+        function elementResize(e) {
+            e.preventDefault();
+            var newHeight = startHeight + (e.clientY - startY);
+            // Enforce min/max constraints
+            var minHeight = 150;
+            var maxHeight = window.innerHeight * 0.8;
+            newHeight = Math.max(minHeight, Math.min(maxHeight, newHeight));
+            panel.style.height = newHeight + "px";
+        }
+
+        function closeResizeElement() {
+            doc.removeEventListener('mouseup', closeResizeElement);
+            doc.removeEventListener('mousemove', elementResize);
+            if (doc !== document) {
+                document.removeEventListener('mouseup', closeResizeElement);
+                document.removeEventListener('mousemove', elementResize);
             }
         }
     }
