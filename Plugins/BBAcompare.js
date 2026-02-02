@@ -1,5 +1,5 @@
 (function () {
-    var CLIENT_VERSION = "1.9.12";
+    var CLIENT_VERSION = "1.9.13";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Panel element references
@@ -339,6 +339,18 @@
                     compareAuction();
                 }
             }
+        });
+
+        // Close panel on logout to prevent orphaned panels
+        addBBOalertEvent("onLogoff", function () {
+            console.log("BBA Compare: Logoff detected, closing panel");
+            closePanel();
+        });
+
+        // Also close panel when leaving table
+        addBBOalertEvent("onTableHidden", function () {
+            console.log("BBA Compare: Table hidden, closing panel");
+            closePanel();
         });
     });
 
