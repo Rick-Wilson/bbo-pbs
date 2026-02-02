@@ -1,6 +1,30 @@
 (function () {
-    var CLIENT_VERSION = "1.9.10";
+    var CLIENT_VERSION = "1.9.11";
     console.log("BBA Compare version " + CLIENT_VERSION);
+
+    // Clean up any orphaned panels from previous iframe loads IMMEDIATELY on script load
+    // This handles the case where the iframe reloads but the panel persists in the top-level document
+    (function cleanupOrphanedPanels() {
+        var panelId = 'bba-compare-panel';
+        try {
+            // Remove from current document
+            var panel = document.getElementById(panelId);
+            if (panel) {
+                panel.remove();
+                console.log("BBA Compare: Cleaned up orphaned panel from iframe document on init");
+            }
+            // Remove from top-level document
+            if (window.top && window.top.document) {
+                var topPanel = window.top.document.getElementById(panelId);
+                if (topPanel) {
+                    topPanel.remove();
+                    console.log("BBA Compare: Cleaned up orphaned panel from top-level document on init");
+                }
+            }
+        } catch (e) {
+            // Cross-origin restriction - ignore
+        }
+    })();
 
     // Global enable flag - controlled by Auction Compare button (start) and panel close (stop)
     // Initially disabled until user clicks the button
