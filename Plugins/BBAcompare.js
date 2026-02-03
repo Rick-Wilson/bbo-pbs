@@ -1,5 +1,31 @@
 (function () {
-    var CLIENT_VERSION = "1.9.16";
+    // Prevent multiple instances from running - check both current window and top window
+    // BBOalert may inject scripts into multiple contexts (main window + iframe)
+    var alreadyInit = window.bbaCompareInitialized;
+    try {
+        if (!alreadyInit && window.top && window.top !== window) {
+            alreadyInit = window.top.bbaCompareInitialized;
+        }
+    } catch (e) {
+        // Cross-origin restriction - ignore
+    }
+
+    if (alreadyInit) {
+        console.log("BBA Compare: Already initialized, skipping duplicate load");
+        return;
+    }
+
+    // Mark as initialized in both contexts
+    window.bbaCompareInitialized = true;
+    try {
+        if (window.top && window.top !== window) {
+            window.top.bbaCompareInitialized = true;
+        }
+    } catch (e) {
+        // Cross-origin - ignore
+    }
+
+    var CLIENT_VERSION = "1.9.17";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Panel element references
@@ -366,6 +392,15 @@
     // This is more reliable than onLogoff which depends on the MutationObserver
     window.addEventListener('unload', function() {
         console.log("BBA Compare: Iframe window unload");
+        // Clear initialization flags to allow re-init after legitimate page reload
+        window.bbaCompareInitialized = false;
+        try {
+            if (window.top) {
+                window.top.bbaCompareInitialized = false;
+            }
+        } catch (e) {
+            // Cross-origin - ignore
+        }
         // Use direct DOM manipulation since our references may already be invalid
         try {
             var p = document.getElementById('bba-compare-panel');
