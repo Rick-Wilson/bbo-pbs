@@ -487,6 +487,10 @@
             requestBody.scenario = scenario.trim();
         }
 
+        if (window.currentPBSConventionCard) {
+            requestBody.conventions = { ns: window.currentPBSConventionCard };
+        }
+
         try {
             var url = cfg.BBA_Server_URL.replace(/\/$/, "") + "/api/auction/generate";
             var headers = {
