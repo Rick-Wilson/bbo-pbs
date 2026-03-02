@@ -25,7 +25,7 @@
         // Cross-origin - ignore
     }
 
-    var CLIENT_VERSION = "1.9.19";
+    var CLIENT_VERSION = "1.9.20";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Panel element references
@@ -34,29 +34,21 @@
     var panelHeader = null;
     var panelTitleEl = null;
 
-    // Clean up any orphaned panels from previous iframe loads IMMEDIATELY on script load
-    (function cleanupOrphanedPanels() {
-        var panelId = 'bba-compare-panel';
-        try {
-            var p = document.getElementById(panelId);
-            if (p) {
-                p.remove();
-                console.log("BBA Compare: Cleaned up orphaned panel from iframe document on init");
-            }
-            if (window.top && window.top.document) {
-                var topPanel = window.top.document.getElementById(panelId);
-                if (topPanel) {
-                    topPanel.remove();
-                    console.log("BBA Compare: Cleaned up orphaned panel from top-level document on init");
-                }
-            }
-        } catch (e) {
-            // Cross-origin restriction - ignore
-        }
-    })();
-
     // Global enable flag - controlled by Auction Compare button (start) and panel close (stop)
-    window.bbaCompareEnabled = false;
+    // If panel already exists (e.g. iframe reloaded after window resize), stay enabled
+    var panelAlreadyExists = false;
+    try {
+        panelAlreadyExists = !!(
+            document.getElementById('bba-compare-panel') ||
+            (window.top && window.top.document && window.top.document.getElementById('bba-compare-panel'))
+        );
+    } catch (e) {
+        // Cross-origin - ignore
+    }
+    window.bbaCompareEnabled = panelAlreadyExists;
+    if (panelAlreadyExists) {
+        console.log("BBA Compare: Panel already exists, restoring enabled state");
+    }
 
     // Start function called by the Auction Compare button
     window.startBBACompare = function() {
