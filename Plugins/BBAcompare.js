@@ -25,7 +25,7 @@
         // Cross-origin - ignore
     }
 
-    var CLIENT_VERSION = "1.9.17";
+    var CLIENT_VERSION = "1.9.19";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Panel element references
@@ -487,8 +487,11 @@
             requestBody.scenario = scenario.trim();
         }
 
-        if (window.currentPBSConventionCard) {
-            requestBody.conventions = { ns: window.currentPBSConventionCard };
+        var conventions = {};
+        if (window.currentPBSConventionCardNS) conventions.ns = window.currentPBSConventionCardNS;
+        if (window.currentPBSConventionCardEW) conventions.ew = window.currentPBSConventionCardEW;
+        if (Object.keys(conventions).length > 0) {
+            requestBody.conventions = conventions;
         }
 
         try {
