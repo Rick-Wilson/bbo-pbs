@@ -1,3 +1,50 @@
+// --- BBOAlert Idle Mode Performance Optimization ---
+// When both "Disable recording" (setting 5) and "Disable auto-alerts" (setting 6)
+// are enabled, skip the heavy per-mutation work (24 check functions + onAnyMutation)
+// to prevent UI slowdowns during tournaments.
+//
+// This works by replacing BBOAlert's MutationObserver with one that short-circuits
+// in idle mode, running only the minimal checks needed to keep the UI functional.
+addBBOalertEvent("onDataLoad", function () {
+    // Save original onAnyMutation so we can delegate in full mode
+    var _originalOnAnyMutation = onAnyMutation;
+
+    // Override onAnyMutation with idle-mode-aware version
+    onAnyMutation = function () {
+        if (isSettingON(5) && isSettingON(6)) {
+            // Idle mode: only keep BBOalert button/tab functional
+            setBBOalertButton(isSettingON(8));
+            hover_bboalert();
+            return;
+        }
+        _originalOnAnyMutation();
+    };
+
+    // Replace the observer to also skip the 24 check functions in idle mode.
+    // BBOobserver is a const (can't reassign) but we can disconnect it and
+    // create a replacement that uses the same targetNode and config.
+    BBOobserver.disconnect();
+
+    var idleModeObserver = new MutationObserver(function (mutationsList, observer) {
+        if (isSettingON(5) && isSettingON(6)) {
+            // Idle mode: only run critical checks for login/logout and table detection
+            observer.disconnect();
+            checkNavDiv();
+            checkTableDisplayed();
+            onAnyMutation();
+            observer.observe(targetNode, config);
+            return;
+        }
+        // Full mode: delegate to original BBOAlert callback.
+        // BBOobserverCallback handles its own disconnect/observe cycle,
+        // and uses the passed observer parameter, so it works with our replacement.
+        BBOobserverCallback(mutationsList, observer);
+    });
+
+    idleModeObserver.observe(targetNode, config);
+    console.log("BBOAlert idle mode optimization installed");
+});
+
 (function () {
     // Prevent multiple instances from running - check both current window and top window
     // BBOalert may inject scripts into multiple contexts (main window + iframe)
