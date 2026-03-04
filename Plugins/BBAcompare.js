@@ -895,7 +895,7 @@
             pos2 = pos4 - e.clientY;
             pos3 = e.clientX;
             pos4 = e.clientY;
-            panel.style.top = (panel.offsetTop - pos2) + "px";
+            panel.style.top = Math.max(0, panel.offsetTop - pos2) + "px";
             panel.style.left = (panel.offsetLeft - pos1) + "px";
             panel.style.right = "auto";
         }
