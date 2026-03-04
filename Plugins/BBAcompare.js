@@ -27,10 +27,13 @@ addBBOalertEvent("onDataLoad", function () {
 
     var idleModeObserver = new MutationObserver(function (mutationsList, observer) {
         if (isSettingON(5) && isSettingON(6)) {
-            // Idle mode: only run critical checks for login/logout and table detection
+            // Idle mode: only run checks needed for UI and BBA Compare
             observer.disconnect();
             checkNavDiv();
             checkTableDisplayed();
+            checkAuctionBoxDisplayed();
+            checkCurrentAuction();
+            checkDealEndPanel();
             onAnyMutation();
             observer.observe(targetNode, config);
             return;
