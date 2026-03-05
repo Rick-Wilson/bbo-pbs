@@ -15,6 +15,8 @@ addBBOalertEvent("onDataLoad", function () {
             // Idle mode: only keep BBOalert button/tab functional
             setBBOalertButton(isSettingON(8));
             hover_bboalert();
+            BBOalertEvents().dispatchEvent(E_onAnyMutation);
+            execUserScript('%onAnyMutation%');
             return;
         }
         _originalOnAnyMutation();
