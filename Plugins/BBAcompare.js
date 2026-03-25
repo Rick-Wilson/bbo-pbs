@@ -82,8 +82,8 @@ addBBOalertEvent("onDataLoad", function () {
 
     // Detect client environment for X-Client-Info header
     function getClientInfo() {
-        // Extension: PBSforBBO uses #pbs-iframe, BBOAlert uses #bboalert-iframe
-        var ext = document.getElementById('pbs-iframe') ? 'PBSforBBO' : 'BBOAlert';
+        // Extension: iframe document.title is set to extension name + version
+        var ext = (document.title.indexOf('PBS') >= 0) ? 'PBSforBBO' : 'BBOAlert';
 
         // Browser
         var ua = navigator.userAgent;
