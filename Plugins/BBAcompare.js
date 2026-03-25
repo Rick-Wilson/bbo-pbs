@@ -77,7 +77,7 @@ addBBOalertEvent("onDataLoad", function () {
         // Cross-origin - ignore
     }
 
-    var CLIENT_VERSION = "1.9.20";
+    var CLIENT_VERSION = "1.9.25";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Detect client environment for X-Client-Info header
