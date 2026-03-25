@@ -80,6 +80,29 @@ addBBOalertEvent("onDataLoad", function () {
     var CLIENT_VERSION = "1.9.20";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
+    // Detect client environment for X-Client-Info header
+    function getClientInfo() {
+        // Extension: PBSforBBO uses #pbs-iframe, BBOAlert uses #bboalert-iframe
+        var ext = document.getElementById('pbs-iframe') ? 'PBSforBBO' : 'BBOAlert';
+
+        // Browser
+        var ua = navigator.userAgent;
+        var browser = 'Unknown';
+        if (ua.indexOf('Edg/') > -1) browser = 'Edge';
+        else if (ua.indexOf('Chrome/') > -1) browser = 'Chrome';
+        else if (ua.indexOf('Firefox/') > -1) browser = 'Firefox';
+        else if (ua.indexOf('Safari/') > -1) browser = 'Safari';
+
+        // OS
+        var os = 'Unknown';
+        var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        if (/Win/i.test(platform)) os = 'Windows';
+        else if (/Mac/i.test(platform)) os = 'macOS';
+        else if (/Linux/i.test(platform)) os = 'Linux';
+
+        return 'ext=' + ext + '; browser=' + browser + '; os=' + os;
+    }
+
     // Panel element references
     var panel = null;
     var panelContent = null;
@@ -544,6 +567,7 @@ addBBOalertEvent("onDataLoad", function () {
                 'Content-Type': 'application/json',
                 'X-Client-Version': CLIENT_VERSION
             };
+            headers['X-Client-Info'] = getClientInfo();
             if (cfg.API_Key) headers['X-API-Key'] = cfg.API_Key;
 
             var response = await fetch(url, {
