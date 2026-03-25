@@ -139,6 +139,17 @@ addBBOalertEvent("onDataLoad", function () {
         return window.bbaCompareEnabled;
     };
 
+    // Hand retrieval by compass direction.
+    // BBO z-indices are compass-based (S=1, W=2, N=3, E=4), fixed
+    // regardless of which seat the user occupies.
+    function getHandBySeat(seat) {
+        var compassToZ = { S: '1', W: '2', N: '3', E: '4' };
+        var zidx = compassToZ[seat];
+        return $('#navDiv .cardClass .topLeft:visible', PWD).filter(function () {
+            return this.parentElement.parentElement.parentElement.style.zIndex.startsWith(zidx);
+        }).text().replaceAll("10", "T");
+    }
+
     // Helper function to convert hand to PBN format
     function hand2PBN(t) {
         var n = replaceSuitSymbols(t, "").split("").reverse().join("");
@@ -149,49 +160,34 @@ addBBOalertEvent("onDataLoad", function () {
         return `${s}.${h}.${d}.${c}`;
     }
 
-    // Get dealer from DOM or fallback to board number
+    // Get dealer from board number (primary) or DOM (fallback)
     function getDealerSeat() {
+        // Primary: detect from DOM using visual position + auction box headers
+        // This is rotation-aware and works regardless of deal rotation settings
         var nd = getNavDiv();
-        var dealerEl = $('.vulPanelDealerClass', nd).get(0);
-
-        if (dealerEl) {
-            var style = dealerEl.style;
-            var top = parseFloat(style.top) || 0;
-            var left = parseFloat(style.left) || 0;
-            var computedStyle = window.getComputedStyle(dealerEl);
-            var transform = computedStyle.transform || 'none';
-            var dealer = '';
-
-            if (transform && transform !== 'none') {
-                var match = transform.match(/matrix\(([^)]+)\)/);
-                if (match) {
-                    var values = match[1].split(',').map(parseFloat);
-                    var angle = Math.round(Math.atan2(values[1], values[0]) * 180 / Math.PI);
-                    if (angle === 0) dealer = 'N';
-                    else if (angle === 90 || angle === -270) dealer = 'E';
-                    else if (angle === 180 || angle === -180) dealer = 'S';
-                    else if (angle === -90 || angle === 270) dealer = 'W';
-                }
+        var d = $('.vulPanelDealerClass', nd).first();
+        if (d.width() != undefined) {
+            var posNr;
+            if (d.width() > d.height()) {   // NS (horizontal marker)
+                posNr = (d.position().top == 0) ? 0 : 2;
+            } else {                         // EW (vertical marker)
+                posNr = (d.position().left == 0) ? 3 : 1;
             }
-
-            if (!dealer) {
-                var elWidth = parseFloat(style.width) || dealerEl.offsetWidth || 20;
-                var elHeight = parseFloat(style.height) || dealerEl.offsetHeight || 20;
-                var isHorizontal = elWidth > elHeight;
-
-                if (left > 50) dealer = 'E';
-                else if (top > 50) dealer = 'S';
-                else if (isHorizontal) dealer = 'N';
-                else dealer = 'W';
+            // Auction box headers are rotation-aware: they reflect actual seating
+            var ah = $("auction-box-header-cell", nd).text().replaceAll(" ", "").replaceAll("\n", "");
+            if (ah.length >= 4) {
+                return ah.charAt((posNr + 1) % 4);
             }
-
-            if (dealer) return dealer;
         }
 
+        // Fallback: board number (only reliable when deals are NOT randomly rotated)
         var boardNum = parseInt(getDealNumber(), 10);
-        if (isNaN(boardNum) || boardNum < 1) return "";
-        var dealers = ['N', 'E', 'S', 'W'];
-        return dealers[(boardNum - 1) % 4];
+        if (!isNaN(boardNum) && boardNum >= 1) {
+            var dealers = ['N', 'E', 'S', 'W'];
+            return dealers[(boardNum - 1) % 4];
+        }
+
+        return "";
     }
 
     function formatSuitSymbols(text) {
