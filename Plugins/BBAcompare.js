@@ -1,3 +1,59 @@
+// --- Host-extension conflict resolution: prefer PBS over BBOalert ---
+// When both PBS and BBOalert extensions are installed, each injects its own
+// iframe (id="pbs-iframe" / id="bboalert-iframe") into the BBO top page and
+// each loads this plugin via its own data file. Running both copies side by
+// side causes duplicate work and UI glitches. If we're running inside the
+// BBOalert iframe and the PBS iframe is also present in the BBO DOM, abort
+// before any side effects (idle-mode observer swap, event handlers) happen.
+//
+// Both iframes are same-origin with BBO (src="") so window.top access works.
+(function () {
+    var title = document.title || '';
+    var amBBOalert = title.indexOf('BBOalert') >= 0 && title.indexOf('PBS') < 0;
+    if (!amBBOalert) return;
+    var pbsIframe;
+    try {
+        pbsIframe = window.top.document.getElementById('pbs-iframe');
+    } catch (e) {
+        return;
+    }
+    if (pbsIframe) {
+        console.log('[BBA Compare] PBS extension detected on page — deferring to PBS instance, will not run under BBOalert.');
+        throw new Error('[BBA Compare] Deferred to PBS instance.');
+    }
+})();
+
+// --- Host-extension conflict resolution: late-arrival watcher ---
+// PBS's content script removes and re-creates #pbs-iframe on every navDiv
+// visibility transition (pbs-bbo-extension/src/main.js). DevTools open/close
+// and table-entry/exit can trigger that. So PBS may appear after this
+// BBAcompare.js has already evaluated under BBOalert. When it does, reload
+// our own iframe by re-assigning srcdoc — the re-eval'd BBAcompare.js will
+// then hit the guard above and defer cleanly.
+(function () {
+    var title = document.title || '';
+    var amBBOalert = title.indexOf('BBOalert') >= 0 && title.indexOf('PBS') < 0;
+    if (!amBBOalert) return;
+    var topDoc, ownIframe;
+    try {
+        topDoc = window.top.document;
+        ownIframe = topDoc.getElementById('bboalert-iframe');
+        if (!ownIframe) return;
+    } catch (e) {
+        return;
+    }
+    var observer = new MutationObserver(function () {
+        try {
+            if (topDoc.getElementById('pbs-iframe')) {
+                observer.disconnect();
+                console.log('[BBA Compare] PBS extension appeared after BBOalert init — reloading BBOalert iframe to defer cleanly.');
+                ownIframe.srcdoc = ownIframe.srcdoc;
+            }
+        } catch (e) { /* iframe in transition — observer will fire again */ }
+    });
+    observer.observe(topDoc.body, { childList: true, subtree: true });
+})();
+
 // --- BBOAlert Idle Mode Performance Optimization ---
 // When both "Disable recording" (setting 5) and "Disable auto-alerts" (setting 6)
 // are enabled, skip the heavy per-mutation work (24 check functions + onAnyMutation)
@@ -77,7 +133,7 @@ addBBOalertEvent("onDataLoad", function () {
         // Cross-origin - ignore
     }
 
-    var CLIENT_VERSION = "1.9.25";
+    var CLIENT_VERSION = "1.9.26";
     console.log("BBA Compare version " + CLIENT_VERSION);
 
     // Detect client environment for X-Client-Info header
