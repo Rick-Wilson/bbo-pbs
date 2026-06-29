@@ -1,2 +1,2 @@
 BBOalert, BBA Compare Plugin
-Javascript,https://github.com/Rick-Wilson/bbo-pbs/blob/master/Plugins/BBAcompare.js
+Javascript,https://github.com/bridge-craftwork/bbo-pbs/blob/master/Plugins/BBAcompare.js

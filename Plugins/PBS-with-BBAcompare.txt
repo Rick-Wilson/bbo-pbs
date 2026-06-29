@@ -5,4 +5,4 @@
 Import,https://github.com/ADavidBailey/Practice-Bidding-Scenarios/blob/main/-PBS.txt
 
 // Add BBA Compare plugin
-Javascript,https://github.com/Rick-Wilson/bbo-pbs/blob/master/Plugins/BBAcompare.js
+Javascript,https://github.com/bridge-craftwork/bbo-pbs/blob/master/Plugins/BBAcompare.js
